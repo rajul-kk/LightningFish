@@ -7,8 +7,12 @@ from .tier_router import TierRouter
 from .resistance import compute_effective_resistance
 from .rule_agent import RuleBasedAgent
 
-_INPUT_COST_PER_TOKEN = 3e-6    # claude-sonnet-4-6: $3/M input tokens
-_OUTPUT_COST_PER_TOKEN = 15e-6  # claude-sonnet-4-6: $15/M output tokens
+_MODEL_COSTS: dict[str, tuple[float, float]] = {
+    "claude-haiku-4-5-20251001": (0.8e-6,  4e-6),
+    "claude-sonnet-4-6":         (3e-6,   15e-6),
+    "claude-opus-4-8":           (15e-6,  75e-6),
+}
+_DEFAULT_COSTS = (3e-6, 15e-6)
 
 
 class SimulationEngine:
@@ -135,8 +139,9 @@ class SimulationEngine:
             opinion = max(-1.0, min(1.0, float(text)))
         except ValueError:
             opinion = 0.0
+        in_cost, out_cost = _MODEL_COSTS.get(self.model, _DEFAULT_COSTS)
         cost = (
-            response.usage.input_tokens * _INPUT_COST_PER_TOKEN
-            + response.usage.output_tokens * _OUTPUT_COST_PER_TOKEN
+            response.usage.input_tokens * in_cost
+            + response.usage.output_tokens * out_cost
         )
         return opinion, cost

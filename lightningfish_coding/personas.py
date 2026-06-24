@@ -33,28 +33,53 @@ _CIBOT_CONFIG = dict(
 )
 
 
-def build_coding_personas(n_agents: int) -> list[AgentPersona]:
+def build_coding_personas(
+    n_agents: int,
+    archetype_config: dict[str, float] | None = None,
+) -> list[AgentPersona]:
+    """
+    Build agent personas for the coding domain.
+
+    archetype_config: optional mapping of archetype name → proportion.
+    Only archetypes present in the dict are included (CIBot included if
+    listed). Pass None to use defaults (all archetypes + CIBot).
+    """
+    by_name = {cfg["archetype"]: cfg for cfg in _ARCHETYPE_CONFIGS}
+    by_name["CIBot"] = _CIBOT_CONFIG
+
+    if archetype_config is not None:
+        raw = {k: v for k, v in archetype_config.items() if k in by_name and v > 0}
+        total = sum(raw.values()) or 1.0
+        proportions = {k: v / total for k, v in raw.items()}
+    else:
+        proportions = {cfg["archetype"]: cfg["proportion"] for cfg in _ARCHETYPE_CONFIGS}
+        proportions["CIBot"] = _CIBOT_CONFIG["proportion"]
+
     personas: list[AgentPersona] = []
-    for cfg in _ARCHETYPE_CONFIGS:
-        for _ in range(max(1, round(cfg["proportion"] * n_agents))):
-            personas.append(AgentPersona(
-                unique_id=str(uuid.uuid4()),
-                archetype=cfg["archetype"],
-                opinion_resistance=cfg["opinion_resistance"],
-                recency_bias=cfg["recency_bias"],
-                contrarian_tendency=cfg["contrarian_tendency"],
-                influence_weight=cfg["influence_weight"],
-                proportion=cfg["proportion"],
-                current_opinion=random.uniform(-0.1, 0.1),
-            ))
-    for _ in range(max(1, round(_CIBOT_CONFIG["proportion"] * n_agents))):
-        personas.append(CIBot(
-            unique_id=str(uuid.uuid4()),
-            archetype="CIBot",
-            opinion_resistance=_CIBOT_CONFIG["opinion_resistance"],
-            recency_bias=_CIBOT_CONFIG["recency_bias"],
-            contrarian_tendency=_CIBOT_CONFIG["contrarian_tendency"],
-            influence_weight=_CIBOT_CONFIG["influence_weight"],
-            proportion=_CIBOT_CONFIG["proportion"],
-        ))
+    for archetype, proportion in proportions.items():
+        cfg = by_name[archetype]
+        count = max(1, round(proportion * n_agents))
+        if archetype == "CIBot":
+            for _ in range(count):
+                personas.append(CIBot(
+                    unique_id=str(uuid.uuid4()),
+                    archetype="CIBot",
+                    opinion_resistance=cfg["opinion_resistance"],
+                    recency_bias=cfg["recency_bias"],
+                    contrarian_tendency=cfg["contrarian_tendency"],
+                    influence_weight=cfg["influence_weight"],
+                    proportion=proportion,
+                ))
+        else:
+            for _ in range(count):
+                personas.append(AgentPersona(
+                    unique_id=str(uuid.uuid4()),
+                    archetype=archetype,
+                    opinion_resistance=cfg["opinion_resistance"],
+                    recency_bias=cfg["recency_bias"],
+                    contrarian_tendency=cfg["contrarian_tendency"],
+                    influence_weight=cfg["influence_weight"],
+                    proportion=proportion,
+                    current_opinion=random.uniform(-0.1, 0.1),
+                ))
     return personas

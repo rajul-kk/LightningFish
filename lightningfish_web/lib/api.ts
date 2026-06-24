@@ -14,6 +14,8 @@ export async function createSimulation(payload: {
   raw_input: Record<string, unknown>;
   n_agents: number;
   n_rounds: number;
+  model: string;
+  agent_config: Record<string, number> | null;
 }): Promise<{ simulation_id: string }> {
   const res = await fetch(`${PY}/simulate`, {
     method: "POST",

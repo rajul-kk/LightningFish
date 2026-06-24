@@ -20,8 +20,12 @@ class CodingDomainAdapter(DomainAdapter):
             github_token=os.environ["GITHUB_TOKEN"],
         )
 
-    def build_personas(self, n_agents: int) -> list[AgentPersona]:
-        return build_coding_personas(n_agents)
+    def build_personas(
+        self,
+        n_agents: int,
+        archetype_config: dict[str, float] | None = None,
+    ) -> list[AgentPersona]:
+        return build_coding_personas(n_agents, archetype_config)
 
     def agent_system_prompt(self, seed: EnrichedSeed, persona: AgentPersona) -> str:
         meta = seed.metadata

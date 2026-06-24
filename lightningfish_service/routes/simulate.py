@@ -21,6 +21,8 @@ class SimulateRequest(BaseModel):
     raw_input: dict
     n_agents: int = 500
     n_rounds: int = 12
+    model: str = "claude-sonnet-4-6"
+    agent_config: dict[str, float] | None = None
 
 
 @router.get("")
@@ -50,7 +52,10 @@ def create(req: SimulateRequest):
     seed = adapter.enrich_seed(req.raw_input)
     seed_dict = seed_to_dict(seed)
     sim_id = str(uuid.uuid4())
-    create_simulation(sim_id, req.user_id, req.domain_id, seed_dict, req.n_agents, req.n_rounds)
+    create_simulation(
+        sim_id, req.user_id, req.domain_id, seed_dict,
+        req.n_agents, req.n_rounds, req.model, req.agent_config,
+    )
     return {"simulation_id": sim_id}
 
 
@@ -74,6 +79,12 @@ def get_result(simulation_id: str):
         "cost_usd": float(sim.get("cost_usd") or 0),
         "n_agents": sim.get("n_agents"),
         "n_rounds": sim.get("n_rounds"),
+        "model": sim.get("model") or "claude-sonnet-4-6",
+        "agent_config": (
+            json.loads(sim["agent_config_json"])
+            if isinstance(sim.get("agent_config_json"), str)
+            else sim.get("agent_config_json")
+        ),
         "seed_json": seed_json,
         "created_at": sim["created_at"].isoformat() if hasattr(sim["created_at"], "isoformat") else str(sim["created_at"]),
     }
@@ -100,11 +111,16 @@ def stream(simulation_id: str):
     seed = seed_from_dict(seed_dict)
     n_agents: int = sim.get("n_agents") or 500
     n_rounds: int = sim.get("n_rounds") or 12
+    model: str = sim.get("model") or "claude-sonnet-4-6"
+    agent_config_raw = sim.get("agent_config_json")
+    if isinstance(agent_config_raw, str):
+        agent_config_raw = json.loads(agent_config_raw)
+    agent_config: dict[str, float] | None = agent_config_raw
 
     def generate():
         update_simulation_status(simulation_id, "running")
-        engine = SimulationEngine(adapter)
-        agents = adapter.build_personas(n_agents)
+        engine = SimulationEngine(adapter, model=model)
+        agents = adapter.build_personas(n_agents, archetype_config=agent_config)
         gen = engine.run_streaming(seed, agents, n_rounds)
         try:
             while True:

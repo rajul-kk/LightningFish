@@ -28,19 +28,38 @@ _ARCHETYPE_CONFIGS: list[dict] = [
 ]
 
 
-def build_finance_personas(n_agents: int) -> list[AgentPersona]:
+def build_finance_personas(
+    n_agents: int,
+    archetype_config: dict[str, float] | None = None,
+) -> list[AgentPersona]:
+    """
+    Build agent personas for the finance domain.
+
+    archetype_config: optional mapping of archetype name → proportion.
+    Only archetypes present in the dict are included; proportions are
+    normalized to sum to 1.0. Pass None to use defaults.
+    """
+    by_name = {cfg["archetype"]: cfg for cfg in _ARCHETYPE_CONFIGS}
+
+    if archetype_config is not None:
+        raw = {k: v for k, v in archetype_config.items() if k in by_name and v > 0}
+        total = sum(raw.values()) or 1.0
+        proportions = {k: v / total for k, v in raw.items()}
+    else:
+        proportions = {cfg["archetype"]: cfg["proportion"] for cfg in _ARCHETYPE_CONFIGS}
+
     personas: list[AgentPersona] = []
-    for cfg in _ARCHETYPE_CONFIGS:
-        count = max(1, round(cfg["proportion"] * n_agents))
-        for _ in range(count):
+    for archetype, proportion in proportions.items():
+        cfg = by_name[archetype]
+        for _ in range(max(1, round(proportion * n_agents))):
             personas.append(AgentPersona(
                 unique_id=str(uuid.uuid4()),
-                archetype=cfg["archetype"],
+                archetype=archetype,
                 opinion_resistance=cfg["opinion_resistance"],
                 recency_bias=cfg["recency_bias"],
                 contrarian_tendency=cfg["contrarian_tendency"],
                 influence_weight=cfg["influence_weight"],
-                proportion=cfg["proportion"],
+                proportion=proportion,
                 current_opinion=random.uniform(-0.15, 0.15),
                 metadata=cfg.get("metadata", {}),
             ))

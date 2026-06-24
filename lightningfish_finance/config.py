@@ -22,8 +22,12 @@ class FinanceDomainAdapter(DomainAdapter):
             raw_input["filing_date"],
         )
 
-    def build_personas(self, n_agents: int) -> list[AgentPersona]:
-        return build_finance_personas(n_agents)
+    def build_personas(
+        self,
+        n_agents: int,
+        archetype_config: dict[str, float] | None = None,
+    ) -> list[AgentPersona]:
+        return build_finance_personas(n_agents, archetype_config)
 
     def agent_system_prompt(self, seed: EnrichedSeed, persona: AgentPersona) -> str:
         return (

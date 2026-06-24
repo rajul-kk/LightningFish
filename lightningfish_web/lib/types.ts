@@ -46,6 +46,63 @@ export interface Simulation {
 
 export type DomainId = "finance" | "coding";
 
+export interface ModelOption {
+  id: string;
+  label: string;
+  description: string;
+  inputCostPerM: number;
+  outputCostPerM: number;
+}
+
+export const MODELS: ModelOption[] = [
+  {
+    id: "claude-haiku-4-5-20251001",
+    label: "Haiku 4.5",
+    description: "Fast, lowest cost",
+    inputCostPerM: 0.80,
+    outputCostPerM: 4,
+  },
+  {
+    id: "claude-sonnet-4-6",
+    label: "Sonnet 4.6",
+    description: "Balanced — default",
+    inputCostPerM: 3,
+    outputCostPerM: 15,
+  },
+  {
+    id: "claude-opus-4-8",
+    label: "Opus 4.8",
+    description: "Most capable",
+    inputCostPerM: 15,
+    outputCostPerM: 75,
+  },
+];
+
+export interface ArchetypeMeta {
+  name: string;
+  defaultProportion: number;
+  description: string;
+}
+
+export const FINANCE_ARCHETYPES: ArchetypeMeta[] = [
+  { name: "ValueInvestor",        defaultProportion: 0.12, description: "Anchored to fundamentals, slow to move" },
+  { name: "MomentumTrader",       defaultProportion: 0.18, description: "Trend follower, reactive to price moves" },
+  { name: "RetailFOMO",           defaultProportion: 0.35, description: "Highly reactive, herding behavior" },
+  { name: "ShortSeller",          defaultProportion: 0.05, description: "Contrarian; digs in when consensus rises" },
+  { name: "InstitutionalAnalyst", defaultProportion: 0.10, description: "High influence, balanced conviction" },
+  { name: "MacroTourist",         defaultProportion: 0.08, description: "Top-down macro lens, moderate reactivity" },
+  { name: "PassiveLurker",        defaultProportion: 0.12, description: "Low influence, slow drift" },
+];
+
+export const CODING_ARCHETYPES: ArchetypeMeta[] = [
+  { name: "SecurityReviewer",       defaultProportion: 0.10, description: "Blocks on security issues, high conviction" },
+  { name: "PerformanceReviewer",    defaultProportion: 0.10, description: "Focused on runtime and memory impact" },
+  { name: "StyleMaintainability",   defaultProportion: 0.20, description: "Cares about readability and consistency" },
+  { name: "DomainExpertMaintainer", defaultProportion: 0.08, description: "Highest influence, domain ownership" },
+  { name: "JuniorContributor",      defaultProportion: 0.40, description: "Deferential, follows senior signals" },
+  { name: "CIBot",                  defaultProportion: 0.12, description: "Deterministic — CI pass rate only" },
+];
+
 export interface DomainMeta {
   id: DomainId;
   label: string;
