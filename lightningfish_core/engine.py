@@ -18,12 +18,25 @@ class SimulationEngine:
         self.client = Anthropic()
         self.router = TierRouter()
 
-    def run(
+    def run_streaming(
         self,
         seed: EnrichedSeed,
         agents: list[AgentPersona],
         n_rounds: int,
-    ) -> SimulationResult:
+    ):
+        """
+        Generator that yields RoundEvent after each round.
+        Returns SimulationResult as StopIteration.value when exhausted.
+
+        Usage:
+            gen = engine.run_streaming(seed, agents, n_rounds)
+            try:
+                while True:
+                    event = next(gen)
+                    # handle event live
+            except StopIteration as e:
+                result = e.value  # SimulationResult
+        """
         trajectory: list[float] = []
         round_events: list[RoundEvent] = []
         total_tier1_calls = 0
@@ -69,7 +82,7 @@ class SimulationEngine:
             stddev_op = statistics.stdev(opinions) if len(opinions) > 1 else 0.0
             trajectory.append(mean_op)
 
-            round_events.append(RoundEvent(
+            event = RoundEvent(
                 round_number=round_num,
                 opinion_distribution=opinions,
                 mean_opinion=mean_op,
@@ -77,7 +90,9 @@ class SimulationEngine:
                 tier1_calls=len(active),
                 active_agent_ids=[a.unique_id for a in active],
                 estimated_cost_usd=round_cost,
-            ))
+            )
+            round_events.append(event)
+            yield event
 
         return SimulationResult(
             seed=seed,
@@ -87,6 +102,19 @@ class SimulationEngine:
             total_tier1_calls=total_tier1_calls,
             total_cost_usd=total_cost_usd,
         )
+
+    def run(
+        self,
+        seed: EnrichedSeed,
+        agents: list[AgentPersona],
+        n_rounds: int,
+    ) -> SimulationResult:
+        gen = self.run_streaming(seed, agents, n_rounds)
+        try:
+            while True:
+                next(gen)
+        except StopIteration as e:
+            return e.value
 
     def _llm_opinion(self, seed: EnrichedSeed, agent: AgentPersona) -> tuple[float, float]:
         system = self.adapter.agent_system_prompt(seed, agent)
