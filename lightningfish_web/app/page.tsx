@@ -6,12 +6,15 @@ export default function HomePage() {
     <div className="max-w-3xl mx-auto px-6 py-24">
       <div className="mb-16">
         <h1 className="text-4xl font-semibold tracking-tight mb-4">
-          Simulate how expert agents form consensus
+          See how the market would react — before it does
         </h1>
         <p className="text-lg text-neutral-500 leading-relaxed max-w-xl">
-          Paste a stock ticker, SEC filing, or GitHub PR. A population of
-          calibrated agent personas deliberates across rounds and converges on a
-          collective view — live.
+          Enter a stock ticker or GitHub PR. Hundreds of calibrated AI personas
+          — value investors, momentum traders, short sellers — deliberate in
+          real time and converge on a collective verdict.
+        </p>
+        <p className="text-sm text-neutral-400 mt-3">
+          Takes about 30 seconds. No account needed to view results.
         </p>
       </div>
 

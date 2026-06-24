@@ -22,8 +22,30 @@ def classify_event_type(text: str) -> str:
     return best if score > 0 else "other"
 
 
+def _fetch_recent_headlines(ticker: str) -> str:
+    """Pull up to 3 recent news headlines from yfinance as context."""
+    try:
+        news = yf.Ticker(ticker).news or []
+        titles = []
+        for item in news[:5]:
+            title = (
+                item.get("content", {}).get("title")  # yfinance >= 0.2.54
+                or item.get("title")                   # older versions
+                or ""
+            )
+            if title:
+                titles.append(title)
+        if titles:
+            return "Recent headlines: " + ". ".join(titles[:3]) + "."
+    except Exception:
+        pass
+    return f"Recent market activity for {ticker}."
+
+
 def enrich_finance_seed(ticker: str, filing_text: str, filing_date: str) -> EnrichedSeed:
-    event_type = classify_event_type(filing_text)
+    # If no context was provided, use live headlines so users don't need to paste anything.
+    context = filing_text.strip() if filing_text.strip() else _fetch_recent_headlines(ticker)
+    event_type = classify_event_type(context)
 
     info = yf.Ticker(ticker).info
     sector = info.get("sector", "unknown")
@@ -36,13 +58,13 @@ def enrich_finance_seed(ticker: str, filing_text: str, filing_date: str) -> Enri
         cap_tier = "small"
 
     summary = (
-        f"{ticker} filed an 8-K reporting a {event_type.replace('_', ' ')} event. "
-        f"Sector: {sector}, market cap: {cap_tier}-cap."
+        f"{ticker} — {event_type.replace('_', ' ')} event. "
+        f"Sector: {sector}, {cap_tier}-cap. Context: {context[:200]}"
     )
 
     return EnrichedSeed(
         domain_id="finance",
-        raw_input={"ticker": ticker, "filing_text": filing_text, "filing_date": filing_date},
+        raw_input={"ticker": ticker, "filing_text": context, "filing_date": filing_date},
         summary=summary,
         entities=[ticker, sector],
         event_type=event_type,

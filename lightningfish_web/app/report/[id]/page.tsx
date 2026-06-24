@@ -1,14 +1,13 @@
 import { AgentChat } from "@/components/AgentChat";
 import { OpinionChart } from "@/components/OpinionChart";
 import { DistributionBar } from "@/components/DistributionBar";
+import { ConsensusVerdict } from "@/components/ConsensusVerdict";
 import type { SimulationResult } from "@/lib/types";
 import { DOMAINS } from "@/lib/types";
 
 async function getSimulation(id: string) {
   const pyUrl = process.env.PYTHON_SERVICE_URL ?? "http://localhost:8000";
-  const res = await fetch(`${pyUrl}/simulate/${id}/result`, {
-    cache: "no-store",
-  });
+  const res = await fetch(`${pyUrl}/simulate/${id}/result`, { cache: "no-store" });
   if (!res.ok) return null;
   return res.json() as Promise<{
     id: string;
@@ -35,13 +34,10 @@ export default async function ReportPage({
       <div className="max-w-xl mx-auto px-6 py-24 text-center">
         <p className="text-neutral-500 mb-4">
           {sim?.status === "running"
-            ? "Simulation still running. Refresh in a moment."
+            ? "Simulation still running — refresh in a moment."
             : "Report not found or simulation failed."}
         </p>
-        <a
-          href="/"
-          className="text-sm text-neutral-700 underline underline-offset-2"
-        >
+        <a href="/" className="text-sm text-neutral-700 underline underline-offset-2">
           Back to home
         </a>
       </div>
@@ -53,51 +49,40 @@ export default async function ReportPage({
   const negativePole = domain?.negativePole ?? "Negative";
   const positivePole = domain?.positivePole ?? "Positive";
   const finalOpinion = result.trajectory[result.trajectory.length - 1] ?? 0;
-  const opinionLabel =
-    finalOpinion > 0.3
-      ? positivePole
-      : finalOpinion < -0.3
-      ? negativePole
-      : "Neutral";
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <div className="mb-8">
+      {/* Header */}
+      <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs text-neutral-400 uppercase tracking-wider">
             {result.domain_id}
           </span>
           <span className="text-neutral-200">/</span>
-          <span className="text-xs text-neutral-400">{result.event_type}</span>
+          <span className="text-xs text-neutral-400">{result.event_type?.replace(/_/g, " ")}</span>
         </div>
         <h1 className="text-2xl font-semibold mb-1">{result.seed_summary}</h1>
-        <p className="text-sm text-neutral-500">
-          {sim.n_agents} agents &middot; {sim.n_rounds} rounds &middot; $
-          {sim.cost_usd.toFixed(4)} total cost
+        <p className="text-xs text-neutral-400">
+          {sim.n_agents} agents &middot; {sim.n_rounds} rounds &middot; ${sim.cost_usd.toFixed(4)}
         </p>
       </div>
 
+      {/* Plain-English verdict — first thing a non-technical user reads */}
+      <ConsensusVerdict
+        finalOpinion={finalOpinion}
+        trajectory={result.trajectory}
+        distribution={result.final_distribution}
+        negativePole={negativePole}
+        positivePole={positivePole}
+        nAgents={sim.n_agents}
+        eventType={result.event_type ?? ""}
+      />
+
+      {/* Trajectory chart */}
       <div className="border border-neutral-200 rounded-xl p-5 mb-5">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">
-            Consensus
-          </span>
-          <span
-            className={`text-sm font-semibold ${
-              finalOpinion > 0.3
-                ? "text-emerald-600"
-                : finalOpinion < -0.3
-                ? "text-red-500"
-                : "text-neutral-500"
-            }`}
-          >
-            {opinionLabel} ({finalOpinion > 0 ? "+" : ""}
-            {finalOpinion.toFixed(3)})
-          </span>
-        </div>
-        <p className="text-xs text-neutral-400 mb-5">
-          Scale: &minus;1.0 ({negativePole}) to +1.0 ({positivePole})
-        </p>
+        <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">
+          Opinion over time
+        </h2>
         <OpinionChart
           trajectory={result.trajectory}
           negativePole={negativePole}
@@ -105,6 +90,7 @@ export default async function ReportPage({
         />
       </div>
 
+      {/* Distribution */}
       <div className="border border-neutral-200 rounded-xl p-5 mb-5">
         <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">
           Final distribution
@@ -116,13 +102,25 @@ export default async function ReportPage({
         />
       </div>
 
-      <div className="border border-neutral-200 rounded-xl p-5 mb-5">
-        <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-2">
-          Simulation stats
+      {/* Agent interview */}
+      <div className="mb-5">
+        <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">
+          Ask an agent
         </h2>
-        <dl className="grid grid-cols-2 gap-3 text-sm">
+        <p className="text-xs text-neutral-400 mb-3">
+          Pick a persona and ask how they reasoned about this event.
+        </p>
+        <AgentChat simulationId={id} domainId={result.domain_id} />
+      </div>
+
+      {/* Stats — collapsed to secondary detail */}
+      <details className="mb-5">
+        <summary className="text-xs text-neutral-400 cursor-pointer hover:text-neutral-700 transition-colors">
+          Simulation details
+        </summary>
+        <dl className="grid grid-cols-2 gap-3 text-sm mt-3 border border-neutral-100 rounded-xl p-4">
           <div>
-            <dt className="text-neutral-400 text-xs">Total LLM calls</dt>
+            <dt className="text-neutral-400 text-xs">LLM calls</dt>
             <dd className="font-medium">{result.total_tier1_calls}</dd>
           </div>
           <div>
@@ -138,26 +136,14 @@ export default async function ReportPage({
             <dd className="font-medium">{sim.n_agents}</dd>
           </div>
         </dl>
-      </div>
+      </details>
 
-      <div className="mb-5">
-        <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">
-          Interview an agent
-        </h2>
-        <AgentChat simulationId={id} domainId={result.domain_id} />
-      </div>
-
+      {/* Footer nav */}
       <div className="pt-4 border-t border-neutral-100 flex items-center justify-between text-sm">
-        <a
-          href="/history"
-          className="text-neutral-500 hover:text-neutral-900 transition-colors"
-        >
-          &larr; All simulations
+        <a href="/history" className="text-neutral-400 hover:text-neutral-900 transition-colors">
+          &larr; History
         </a>
-        <a
-          href="/"
-          className="text-neutral-500 hover:text-neutral-900 transition-colors"
-        >
+        <a href="/" className="text-neutral-400 hover:text-neutral-900 transition-colors">
           New simulation
         </a>
       </div>

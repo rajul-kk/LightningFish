@@ -116,19 +116,19 @@ export interface DomainMeta {
 export const DOMAINS: DomainMeta[] = [
   {
     id: "finance",
-    label: "Market Sentiment",
+    label: "How will the market react?",
     description:
-      "Simulate how analyst archetypes react to earnings announcements, SEC filings, or market events.",
+      "Enter any stock ticker — optionally add a news headline or earnings result. Value investors, traders, and retail buyers deliberate and reach a bullish or bearish verdict.",
     negativePole: "Bearish",
     positivePole: "Bullish",
-    inputLabel: "Ticker + event",
-    inputPlaceholder: "e.g. AAPL, or paste a filing excerpt",
+    inputLabel: "Stock ticker",
+    inputPlaceholder: "e.g. AAPL, or paste a news excerpt",
   },
   {
     id: "coding",
-    label: "Code Review",
+    label: "Should this PR be merged?",
     description:
-      "Simulate a multi-persona code review consensus for any GitHub pull request.",
+      "Paste a GitHub pull request URL. Security reviewers, domain experts, and junior contributors weigh in and reach a consensus on whether to approve or block.",
     negativePole: "Block",
     positivePole: "Approve",
     inputLabel: "GitHub PR URL",

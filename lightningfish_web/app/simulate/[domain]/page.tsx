@@ -26,6 +26,17 @@ function estimateCost(n_agents: number, n_rounds: number, model: ModelOption): s
   return (inputCost + outputCost).toFixed(3);
 }
 
+const EXAMPLES: Record<string, { label: string; input: string }> = {
+  finance: {
+    label: "Try AAPL earnings",
+    input: "AAPL\n\nApple beat Q4 earnings estimates, reporting revenue of $124.3B versus the $122.6B consensus. EPS came in at $1.64, above the $1.60 expected. iPhone sales surprised to the upside.",
+  },
+  coding: {
+    label: "Try an open-source PR",
+    input: "https://github.com/pallets/flask/pull/5489",
+  },
+};
+
 function normalizedConfig(
   archetypes: ArchetypeMeta[],
   enabled: Set<string>,
@@ -136,12 +147,23 @@ export default function SimulatePage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Seed input */}
         <div>
-          <label className="block text-sm font-medium mb-2">{domainMeta.inputLabel}</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium">{domainMeta.inputLabel}</label>
+            {EXAMPLES[domain] && (
+              <button
+                type="button"
+                onClick={() => setRawInput(EXAMPLES[domain].input)}
+                className="text-xs text-neutral-400 hover:text-neutral-700 underline underline-offset-2 transition-colors"
+              >
+                {EXAMPLES[domain].label}
+              </button>
+            )}
+          </div>
           {domain === "finance" ? (
             <textarea
               className="w-full border border-neutral-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-neutral-400 resize-none"
               rows={5}
-              placeholder={`AAPL\n\nApple reported Q4 earnings with revenue of $124B...`}
+              placeholder={"AAPL\n\nOptional: paste any news, filing excerpt, or earnings summary. Leave blank and we'll use recent headlines automatically."}
               value={rawInput}
               onChange={(e) => setRawInput(e.target.value)}
               required
@@ -156,11 +178,11 @@ export default function SimulatePage() {
               required
             />
           )}
-          {domain === "finance" && (
-            <p className="text-xs text-neutral-400 mt-1">
-              First line: ticker symbol. Remaining lines: optional filing excerpt.
-            </p>
-          )}
+          <p className="text-xs text-neutral-400 mt-1">
+            {domain === "finance"
+              ? "First line: ticker (e.g. TSLA). Second line onwards: any context — or leave blank to use live headlines."
+              : "Any public GitHub pull request URL works."}
+          </p>
         </div>
 
         {/* Simulation parameters */}
