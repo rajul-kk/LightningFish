@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lightningfish"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=0.40.0",
+    "pydantic-settings>=2.0.0",
+    "structlog>=24.0.0",
+    "scipy>=1.12.0",
+    "networkx>=3.0.0",
+    "yfinance>=0.2.40",
+    "sec-edgar-downloader>=5.0.0",
+    "requests>=2.31.0",
+    "praw>=7.7.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0", "pytest-mock>=3.12.0"]
+
+[project.entry-points."lightningfish.domains"]
+finance = "lightningfish_finance:adapter"
+coding = "lightningfish_coding:adapter"
+
+[tool.hatch.build.targets.wheel]
+packages = ["lightningfish_core", "lightningfish_finance", "lightningfish_coding"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
