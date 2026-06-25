@@ -18,7 +18,7 @@ import lightningfish_coding   # noqa: F401
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import enrich, simulate, chat, backtest, keys
+from .routes import enrich, simulate, chat, backtest, keys, local
 
 app = FastAPI(title="Lightningfish Service", version="0.1.0")
 
@@ -39,6 +39,7 @@ app.include_router(simulate.router, prefix="/simulate", tags=["simulate"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(backtest.router, prefix="/backtest", tags=["backtest"])
 app.include_router(keys.router, prefix="/keys", tags=["keys"])
+app.include_router(local.router, prefix="/local", tags=["local"])
 
 
 @app.get("/health", tags=["meta"])
