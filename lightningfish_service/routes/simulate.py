@@ -1,11 +1,15 @@
 from __future__ import annotations
 import json
 import uuid
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+import logging
+from pydantic import BaseModel, Field
 from lightningfish_core.registry import registry
+
+logger = logging.getLogger(__name__)
 from lightningfish_core.engine import SimulationEngine
+from ..limiter import limiter
 from ..db import (
     create_simulation, get_simulation, get_simulations_by_user,
     update_simulation_status, update_simulation_result, insert_round_event,
@@ -19,8 +23,8 @@ class SimulateRequest(BaseModel):
     domain_id: str
     user_id: str
     raw_input: dict
-    n_agents: int = 500
-    n_rounds: int = 12
+    n_agents: int = Field(300, ge=10, le=1000)
+    n_rounds: int = Field(10, ge=2, le=20)
     model: str = "claude-sonnet-4-6"
     agent_config: dict[str, float] | None = None
     base_url: str | None = None
@@ -44,7 +48,8 @@ def list_simulations(user_id: str, limit: int = 50):
 
 
 @router.post("")
-def create(req: SimulateRequest):
+@limiter.limit("5/minute")
+def create(request: Request, req: SimulateRequest):
     """Enrich the seed, store the simulation record, return simulation_id."""
     adapter = registry.get(req.domain_id)
     if adapter is None:
@@ -137,6 +142,7 @@ def stream(simulation_id: str):
             update_simulation_result(simulation_id, result_dict, result.total_cost_usd)
             yield f"data: {json.dumps({'type': 'complete', 'simulation_id': simulation_id, 'total_cost_usd': result.total_cost_usd})}\n\n"
         except Exception as exc:
+            logger.exception("Simulation %s failed: %s", simulation_id, exc)
             update_simulation_status(simulation_id, "failed")
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
 

@@ -2,10 +2,12 @@ from __future__ import annotations
 import json
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from fastapi import Request
 from anthropic import Anthropic
 import openai as _openai
 from lightningfish_core.registry import registry
 from ..db import get_simulation
+from ..limiter import limiter
 
 router = APIRouter()
 
@@ -16,7 +18,8 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/{simulation_id}")
-def chat(simulation_id: str, req: ChatRequest):
+@limiter.limit("20/minute")
+def chat(request: Request, simulation_id: str, req: ChatRequest):
     """Answer a user question as a specific agent persona post-simulation."""
     sim = get_simulation(simulation_id)
     if sim is None:

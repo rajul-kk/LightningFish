@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/py/:path*",
-        destination: `${process.env.PYTHON_SERVICE_URL}/:path*`,
+        destination: `${process.env.PYTHON_SERVICE_URL ?? "http://localhost:8000"}/:path*`,
       },
     ];
   },
