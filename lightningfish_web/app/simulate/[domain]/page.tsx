@@ -9,8 +9,11 @@ import {
   CODING_ARCHETYPES,
   type ArchetypeMeta,
   type ModelOption,
+  type LocalStatus,
+  LOCAL_POPULAR_MODELS,
+  LOCAL_DEFAULT_BASE_URL,
 } from "@/lib/types";
-import { createSimulation } from "@/lib/api";
+import { createSimulation, probeLocalServer } from "@/lib/api";
 
 const PRESETS = {
   fast:     { n_agents: 100, n_rounds: 6  },
@@ -70,6 +73,11 @@ export default function SimulatePage() {
   const [customProps, setCustomProps] = useState<Record<string, number>>(
     () => Object.fromEntries(archetypes.map((a) => [a.name, a.defaultProportion]))
   );
+  const [useLocalModel, setUseLocalModel] = useState(false);
+  const [localBaseUrl, setLocalBaseUrl] = useState(LOCAL_DEFAULT_BASE_URL);
+  const [localModelName, setLocalModelName] = useState("llama3.2");
+  const [localStatus, setLocalStatus] = useState<LocalStatus | null>(null);
+  const [probingLocal, setProbingLocal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +87,18 @@ export default function SimulatePage() {
         Unknown domain: {domain}
       </div>
     );
+  }
+
+  async function probeLocal() {
+    setProbingLocal(true);
+    setLocalStatus(null);
+    try {
+      const status = await probeLocalServer(localBaseUrl);
+      setLocalStatus(status);
+    } catch {
+      setLocalStatus({ available: false, gpu: null, models: [] });
+    }
+    setProbingLocal(false);
   }
 
   function toggleArchetype(name: string) {
@@ -120,8 +140,9 @@ export default function SimulatePage() {
         raw_input: buildRawInput(),
         n_agents: nAgents,
         n_rounds: nRounds,
-        model: model.id,
+        model: useLocalModel ? `ollama:${localModelName}` : model.id,
         agent_config,
+        base_url: useLocalModel ? localBaseUrl : null,
       });
       router.push(`/simulate/${simulation_id}/live`);
     } catch (err) {
@@ -250,6 +271,137 @@ export default function SimulatePage() {
           <p className="text-xs text-neutral-400 mt-2">
             Estimated cost: ~${estimateCost(nAgents, nRounds, model)}
           </p>
+        </div>
+
+        {/* Local / Self-hosted */}
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Run on your own GPU / CPU
+          </label>
+          <div className="border border-neutral-200 rounded-xl overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3">
+              <input
+                type="checkbox"
+                id="use-local"
+                checked={useLocalModel}
+                onChange={(e) => {
+                  setUseLocalModel(e.target.checked);
+                  setLocalStatus(null);
+                }}
+                className="accent-neutral-800"
+              />
+              <label
+                htmlFor="use-local"
+                className="text-sm text-neutral-700 flex-1 cursor-pointer"
+              >
+                Use local inference server (Ollama)
+              </label>
+              {useLocalModel && localStatus && (
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full border ${
+                    !localStatus.available
+                      ? "bg-red-50 border-red-200 text-red-600"
+                      : localStatus.gpu
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                      : "bg-neutral-100 border-neutral-200 text-neutral-600"
+                  }`}
+                >
+                  {!localStatus.available
+                    ? "offline"
+                    : localStatus.gpu
+                    ? "GPU"
+                    : "CPU"}
+                </span>
+              )}
+            </div>
+
+            {useLocalModel && (
+              <div className="border-t border-neutral-100 px-4 py-3 space-y-3">
+                <div>
+                  <label className="block text-xs text-neutral-500 mb-1">
+                    Endpoint
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={localBaseUrl}
+                      onChange={(e) => {
+                        setLocalBaseUrl(e.target.value);
+                        setLocalStatus(null);
+                      }}
+                      className="flex-1 border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-neutral-400"
+                      placeholder="http://localhost:11434/v1"
+                    />
+                    <button
+                      type="button"
+                      onClick={probeLocal}
+                      disabled={probingLocal}
+                      className="text-xs px-3 py-2 border border-neutral-200 rounded-lg hover:border-neutral-400 transition-colors disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {probingLocal ? "..." : "Test"}
+                    </button>
+                  </div>
+                  {localStatus && !localStatus.available && (
+                    <p className="text-xs text-red-500 mt-1">
+                      Could not reach server. Is Ollama running?
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs text-neutral-500 mb-1">
+                    Model
+                  </label>
+                  <div className="flex gap-1.5 flex-wrap mb-2">
+                    {LOCAL_POPULAR_MODELS.map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setLocalModelName(m)}
+                        className={`text-xs px-2 py-1 rounded border transition-colors ${
+                          localModelName === m
+                            ? "border-neutral-800 bg-neutral-50"
+                            : "border-neutral-200 hover:border-neutral-400"
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={localModelName}
+                    onChange={(e) => setLocalModelName(e.target.value)}
+                    className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-neutral-400"
+                    placeholder="Custom model name"
+                  />
+                </div>
+
+                {localStatus?.models.length ? (
+                  <p className="text-xs text-neutral-400">
+                    Loaded: {localStatus.models.join(", ")}
+                  </p>
+                ) : null}
+
+                <p className="text-xs text-neutral-400">
+                  Zero API cost. Install Ollama at{" "}
+                  <a
+                    href="https://ollama.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2 hover:text-neutral-700"
+                  >
+                    ollama.com
+                  </a>
+                  {", then run "}
+                  <code className="bg-neutral-100 px-1 rounded">
+                    ollama pull llama3.2
+                  </code>
+                  .
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Advanced: Agent mix */}

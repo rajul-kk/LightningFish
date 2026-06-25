@@ -78,6 +78,23 @@ export const MODELS: ModelOption[] = [
   },
 ];
 
+export interface LocalStatus {
+  available: boolean;
+  gpu: boolean | null;
+  models: string[];
+}
+
+export const LOCAL_POPULAR_MODELS = [
+  "llama3.2",
+  "llama3.1:8b",
+  "mistral",
+  "phi3",
+  "gemma2:2b",
+  "qwen2.5:7b",
+] as const;
+
+export const LOCAL_DEFAULT_BASE_URL = "http://localhost:11434/v1";
+
 export interface ArchetypeMeta {
   name: string;
   defaultProportion: number;

@@ -16,6 +16,7 @@ export async function createSimulation(payload: {
   n_rounds: number;
   model: string;
   agent_config: Record<string, number> | null;
+  base_url?: string | null;
 }): Promise<{ simulation_id: string }> {
   const res = await fetch(`${PY}/simulate`, {
     method: "POST",
@@ -44,5 +45,16 @@ export async function chatWithAgent(
 
 export async function getReport(simulationId: string) {
   const res = await fetch(`${PY}/simulate/${simulationId}/report`);
+  return json(res);
+}
+
+export async function probeLocalServer(baseUrl: string): Promise<{
+  available: boolean;
+  gpu: boolean | null;
+  models: string[];
+}> {
+  const res = await fetch(
+    `${PY}/local/status?base_url=${encodeURIComponent(baseUrl)}`
+  );
   return json(res);
 }
