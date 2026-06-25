@@ -3,13 +3,11 @@ import json
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from anthropic import Anthropic
+import openai as _openai
 from lightningfish_core.registry import registry
 from ..db import get_simulation
 
 router = APIRouter()
-
-_client = Anthropic()
-_MODEL = "claude-sonnet-4-6"
 
 
 class ChatRequest(BaseModel):
@@ -34,6 +32,8 @@ def chat(simulation_id: str, req: ChatRequest):
     final_opinion = trajectory[-1] if trajectory else 0.0
     domain_id: str = result_json.get("domain_id", sim["domain_id"])
     seed_summary: str = result_json.get("seed_summary", "the event")
+    model: str = sim.get("model") or "claude-sonnet-4-6"
+    base_url: str | None = sim.get("base_url")
 
     adapter = registry.get(domain_id)
     negative_label, positive_label = adapter.opinion_labels if adapter else ("negative", "positive")
@@ -51,10 +51,28 @@ def chat(simulation_id: str, req: ChatRequest):
         f"Be specific and opinionated. Keep your answer under 150 words."
     )
 
-    response = _client.messages.create(
-        model=_MODEL,
-        max_tokens=256,
-        system=system,
-        messages=[{"role": "user", "content": req.message}],
-    )
-    return {"reply": response.content[0].text.strip()}
+    if base_url is not None or model.startswith("ollama:"):
+        bare = model.split(":", 1)[-1] if ":" in model else model
+        client = _openai.OpenAI(
+            base_url=base_url or "http://localhost:11434/v1", api_key="local"
+        )
+        resp = client.chat.completions.create(
+            model=bare,
+            max_tokens=256,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": req.message},
+            ],
+        )
+        reply = (resp.choices[0].message.content or "").strip()
+    else:
+        client = Anthropic()
+        resp = client.messages.create(
+            model=model,
+            max_tokens=256,
+            system=system,
+            messages=[{"role": "user", "content": req.message}],
+        )
+        reply = resp.content[0].text.strip()
+
+    return {"reply": reply}

@@ -24,6 +24,7 @@ image = (
         "fastapi>=0.115",
         "uvicorn>=0.29",
         "anthropic>=0.50",
+        "openai>=1.0",
         "psycopg2-binary>=2.9",
         "pydantic>=2.7",
         "scipy>=1.12",

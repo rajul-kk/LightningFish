@@ -23,6 +23,7 @@ class SimulateRequest(BaseModel):
     n_rounds: int = 12
     model: str = "claude-sonnet-4-6"
     agent_config: dict[str, float] | None = None
+    base_url: str | None = None
 
 
 @router.get("")
@@ -54,7 +55,7 @@ def create(req: SimulateRequest):
     sim_id = str(uuid.uuid4())
     create_simulation(
         sim_id, req.user_id, req.domain_id, seed_dict,
-        req.n_agents, req.n_rounds, req.model, req.agent_config,
+        req.n_agents, req.n_rounds, req.model, req.agent_config, req.base_url,
     )
     return {"simulation_id": sim_id}
 
@@ -80,6 +81,7 @@ def get_result(simulation_id: str):
         "n_agents": sim.get("n_agents"),
         "n_rounds": sim.get("n_rounds"),
         "model": sim.get("model") or "claude-sonnet-4-6",
+        "base_url": sim.get("base_url"),
         "agent_config": (
             json.loads(sim["agent_config_json"])
             if isinstance(sim.get("agent_config_json"), str)
@@ -116,10 +118,11 @@ def stream(simulation_id: str):
     if isinstance(agent_config_raw, str):
         agent_config_raw = json.loads(agent_config_raw)
     agent_config: dict[str, float] | None = agent_config_raw
+    base_url: str | None = sim.get("base_url")
 
     def generate():
         update_simulation_status(simulation_id, "running")
-        engine = SimulationEngine(adapter, model=model)
+        engine = SimulationEngine(adapter, model=model, base_url=base_url)
         agents = adapter.build_personas(n_agents, archetype_config=agent_config)
         gen = engine.run_streaming(seed, agents, n_rounds)
         try:

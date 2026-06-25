@@ -33,18 +33,21 @@ def create_simulation(
     n_rounds: int,
     model: str = "claude-sonnet-4-6",
     agent_config: dict | None = None,
+    base_url: str | None = None,
 ) -> None:
     with _cursor() as cur:
         cur.execute(
             """
             INSERT INTO simulations
-              (id, user_id, domain_id, status, seed_json, n_agents, n_rounds, model, agent_config_json)
-            VALUES (%s, %s, %s, 'pending', %s, %s, %s, %s, %s)
+              (id, user_id, domain_id, status, seed_json, n_agents, n_rounds,
+               model, agent_config_json, base_url)
+            VALUES (%s, %s, %s, 'pending', %s, %s, %s, %s, %s, %s)
             """,
             (
                 sim_id, user_id, domain_id, json.dumps(seed_json),
                 n_agents, n_rounds, model,
                 json.dumps(agent_config) if agent_config is not None else None,
+                base_url,
             ),
         )
 
