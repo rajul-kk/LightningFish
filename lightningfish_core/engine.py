@@ -1,25 +1,28 @@
 from __future__ import annotations
 import statistics
-from anthropic import Anthropic
 from .models import AgentPersona, EnrichedSeed, RoundEvent, SimulationResult
 from .adapter import DomainAdapter
 from .tier_router import TierRouter
 from .resistance import compute_effective_resistance
 from .rule_agent import RuleBasedAgent
+from .llm_provider import LLMProvider, make_provider
 
-_MODEL_COSTS: dict[str, tuple[float, float]] = {
-    "claude-haiku-4-5-20251001": (0.8e-6,  4e-6),
-    "claude-sonnet-4-6":         (3e-6,   15e-6),
-    "claude-opus-4-8":           (15e-6,  75e-6),
-}
-_DEFAULT_COSTS = (3e-6, 15e-6)
+_USER_MSG = (
+    "Output your current opinion as a single float between -1.0 and 1.0. "
+    "Output ONLY the number, nothing else."
+)
 
 
 class SimulationEngine:
-    def __init__(self, adapter: DomainAdapter, model: str = "claude-sonnet-4-6") -> None:
+    def __init__(
+        self,
+        adapter: DomainAdapter,
+        model: str = "claude-sonnet-4-6",
+        base_url: str | None = None,
+    ) -> None:
         self.adapter = adapter
         self.model = model
-        self.client = Anthropic()
+        self.provider: LLMProvider = make_provider(model, base_url)
         self.router = TierRouter()
 
     def run_streaming(
@@ -29,7 +32,7 @@ class SimulationEngine:
         n_rounds: int,
     ):
         """
-        Generator that yields RoundEvent after each round.
+        Generator yielding RoundEvent after each round.
         Returns SimulationResult as StopIteration.value when exhausted.
 
         Usage:
@@ -37,9 +40,8 @@ class SimulationEngine:
             try:
                 while True:
                     event = next(gen)
-                    # handle event live
             except StopIteration as e:
-                result = e.value  # SimulationResult
+                result = e.value
         """
         trajectory: list[float] = []
         round_events: list[RoundEvent] = []
@@ -122,26 +124,4 @@ class SimulationEngine:
 
     def _llm_opinion(self, seed: EnrichedSeed, agent: AgentPersona) -> tuple[float, float]:
         system = self.adapter.agent_system_prompt(seed, agent)
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=16,
-            system=system,
-            messages=[{
-                "role": "user",
-                "content": (
-                    "Output your current opinion as a single float between -1.0 and 1.0. "
-                    "Output ONLY the number, nothing else."
-                ),
-            }],
-        )
-        text = response.content[0].text.strip()
-        try:
-            opinion = max(-1.0, min(1.0, float(text)))
-        except ValueError:
-            opinion = 0.0
-        in_cost, out_cost = _MODEL_COSTS.get(self.model, _DEFAULT_COSTS)
-        cost = (
-            response.usage.input_tokens * in_cost
-            + response.usage.output_tokens * out_cost
-        )
-        return opinion, cost
+        return self.provider.get_opinion(system, _USER_MSG, self.model)
