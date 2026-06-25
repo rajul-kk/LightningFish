@@ -55,12 +55,19 @@ export default function HomePage() {
           Built on calibrated behavioral archetypes grounded in academic
           literature.{" "}
           <a
+            href="/report/demo"
+            className="text-neutral-700 underline underline-offset-2 hover:text-neutral-900"
+          >
+            Preview a sample report
+          </a>{" "}
+          or{" "}
+          <a
             href="/dev/keys"
             className="text-neutral-700 underline underline-offset-2 hover:text-neutral-900"
           >
-            Access via API
-          </a>{" "}
-          to integrate simulation into your own workflow.
+            access via API
+          </a>
+          .
         </p>
       </div>
     </div>
