@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from .models import EnrichedSeed, BacktestResult
+
 from .adapter import DomainAdapter
 from .engine import SimulationEngine
+from .models import BacktestResult, EnrichedSeed
 
 
 class BacktestHarness(ABC):

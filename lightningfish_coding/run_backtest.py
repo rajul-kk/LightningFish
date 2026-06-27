@@ -8,14 +8,18 @@ on each, and prints a calibration report in the same format as the finance runne
 Requires env vars: ANTHROPIC_API_KEY, GITHUB_TOKEN
 """
 from __future__ import annotations
+
 import os
 import statistics
+
 import requests
+
 from lightningfish_core.backtest_base import BacktestHarness
-from lightningfish_core.models import EnrichedSeed, BacktestResult
+from lightningfish_core.models import BacktestResult, EnrichedSeed
+
 from .config import CodingDomainAdapter
-from .seed_enricher import enrich_coding_seed
 from .ground_truth import get_coding_ground_truth
+from .seed_enricher import enrich_coding_seed
 
 # Public repos with diverse PR patterns for calibration
 _REPOS = [
@@ -53,7 +57,7 @@ def fetch_seeds(n: int = 30) -> list[EnrichedSeed]:
         resp = requests.get(
             f"https://api.github.com/repos/{owner}/{repo}/pulls",
             headers=headers,
-            params={"state": "closed", "per_page": 10, "sort": "updated"},
+            params={"state": "closed", "per_page": 10, "sort": "updated"},  # type: ignore[arg-type]
         )
         if resp.status_code != 200:
             print(f"  Skip {owner}/{repo}: HTTP {resp.status_code}")

@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
 from lightningfish_core.registry import registry
 
 router = APIRouter()

@@ -1,8 +1,11 @@
 from __future__ import annotations
-import os
+
 import datetime
+import os
+
 import praw
 import yfinance as yf
+
 from lightningfish_core.models import GroundTruthRecord
 
 _SUBREDDITS = ["wallstreetbets", "investing", "stocks"]

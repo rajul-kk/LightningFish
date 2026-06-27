@@ -1,9 +1,12 @@
 from __future__ import annotations
+
+import random
+
 # NOTE: Parameter values below are first-pass estimates pending validation
 # against a real PR dataset. Unlike the finance domain, these are NOT
 # grounded in published literature. Treat calibration results as provisional.
 import uuid
-import random
+
 from lightningfish_core.models import AgentPersona, EnrichedSeed
 from lightningfish_core.rule_agent import RuleBasedAgent
 
@@ -53,7 +56,7 @@ def build_coding_personas(
         proportions = {k: v / total for k, v in raw.items()}
     else:
         proportions = {cfg["archetype"]: cfg["proportion"] for cfg in _ARCHETYPE_CONFIGS}
-        proportions["CIBot"] = _CIBOT_CONFIG["proportion"]
+        proportions["CIBot"] = _CIBOT_CONFIG["proportion"]  # type: ignore[assignment]
 
     personas: list[AgentPersona] = []
     for archetype, proportion in proportions.items():

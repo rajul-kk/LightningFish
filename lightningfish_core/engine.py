@@ -1,11 +1,13 @@
 from __future__ import annotations
+
 import statistics
-from .models import AgentPersona, EnrichedSeed, RoundEvent, SimulationResult
+
 from .adapter import DomainAdapter
-from .tier_router import TierRouter
+from .llm_provider import LLMProvider, make_provider
+from .models import AgentPersona, EnrichedSeed, RoundEvent, SimulationResult
 from .resistance import compute_effective_resistance
 from .rule_agent import RuleBasedAgent
-from .llm_provider import LLMProvider, make_provider
+from .tier_router import TierRouter
 
 _USER_MSG = (
     "Output your current opinion as a single float between -1.0 and 1.0. "

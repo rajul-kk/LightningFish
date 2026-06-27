@@ -1,6 +1,8 @@
 from __future__ import annotations
-import pytest
+
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 def _mock_anthropic_client(text: str = "0.4", input_tokens: int = 100, output_tokens: int = 5):

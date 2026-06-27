@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import json
 import os
+from contextlib import contextmanager
+
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from contextlib import contextmanager
 
 
 def _connect():

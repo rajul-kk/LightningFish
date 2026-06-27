@@ -1,5 +1,5 @@
-from lightningfish_core.resistance import compute_effective_resistance
 from lightningfish_core.models import AgentPersona
+from lightningfish_core.resistance import compute_effective_resistance
 
 
 def _make_agent(resistance: float, opinion: float = 0.3) -> AgentPersona:

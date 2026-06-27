@@ -3,9 +3,10 @@ Automated verification of the six done criteria from the spec.
 These run without live API calls — structural properties only.
 """
 import statistics
+
+from lightningfish_coding.personas import build_coding_personas
 from lightningfish_core.tier_router import TierRouter
 from lightningfish_finance.personas import build_finance_personas
-from lightningfish_coding.personas import build_coding_personas
 
 
 def test_core_contains_no_domain_specific_strings():
@@ -49,8 +50,8 @@ def test_coding_archetype_parameter_diversity():
 
 
 def test_both_domains_register():
+    import lightningfish_coding  # noqa: F401
     import lightningfish_finance  # noqa: F401
-    import lightningfish_coding   # noqa: F401
     from lightningfish_core.registry import registry
     assert registry.get("finance") is not None
     assert registry.get("coding") is not None

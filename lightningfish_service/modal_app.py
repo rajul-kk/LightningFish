@@ -14,6 +14,7 @@ Secrets:  modal secret create lightningfish-secrets \
             ALLOWED_ORIGINS=https://your-vercel-app.vercel.app
 """
 from __future__ import annotations
+
 import modal
 
 app = modal.App("lightningfish-service")

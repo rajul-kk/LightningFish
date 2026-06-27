@@ -1,7 +1,8 @@
 import pytest
-from lightningfish_core.registry import DomainRegistry
+
 from lightningfish_core.adapter import DomainAdapter
-from lightningfish_core.models import EnrichedSeed, BacktestResult
+from lightningfish_core.models import BacktestResult, EnrichedSeed
+from lightningfish_core.registry import DomainRegistry
 
 
 class MockAdapter(DomainAdapter):

@@ -1,8 +1,10 @@
 """Route tests for POST /chat/{simulation_id}."""
 from __future__ import annotations
+
 import json
 import uuid
 from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
 
 _SIM_ID = str(uuid.uuid4())

@@ -1,6 +1,8 @@
 from __future__ import annotations
-import uuid
+
 import random
+import uuid
+
 from lightningfish_core.models import AgentPersona
 
 

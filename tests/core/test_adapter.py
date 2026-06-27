@@ -1,8 +1,9 @@
 import pytest
+
 from lightningfish_core.adapter import DomainAdapter
 from lightningfish_core.enricher import EnricherPlugin
+from lightningfish_core.models import AgentPersona
 from lightningfish_core.rule_agent import RuleBasedAgent
-from lightningfish_core.models import AgentPersona, EnrichedSeed, BacktestResult
 
 
 def test_domain_adapter_is_abstract():

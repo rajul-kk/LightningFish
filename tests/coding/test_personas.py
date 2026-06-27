@@ -1,4 +1,4 @@
-from lightningfish_coding.personas import build_coding_personas, CIBot
+from lightningfish_coding.personas import CIBot, build_coding_personas
 from lightningfish_core.models import EnrichedSeed
 from lightningfish_core.rule_agent import RuleBasedAgent
 

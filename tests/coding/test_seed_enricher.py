@@ -1,5 +1,6 @@
-from unittest.mock import patch, MagicMock
-from lightningfish_coding.seed_enricher import enrich_coding_seed, classify_diff_size
+from unittest.mock import MagicMock, patch
+
+from lightningfish_coding.seed_enricher import classify_diff_size, enrich_coding_seed
 from lightningfish_core.models import EnrichedSeed
 
 

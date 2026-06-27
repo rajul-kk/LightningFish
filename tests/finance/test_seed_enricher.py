@@ -1,6 +1,7 @@
-from unittest.mock import patch, MagicMock
-from lightningfish_finance.seed_enricher import classify_event_type, enrich_finance_seed
+from unittest.mock import patch
+
 from lightningfish_core.models import EnrichedSeed
+from lightningfish_finance.seed_enricher import classify_event_type, enrich_finance_seed
 
 
 def test_classify_earnings_beat():

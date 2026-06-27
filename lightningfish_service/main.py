@@ -5,9 +5,10 @@ Local dev: uvicorn lightningfish_service.main:app --reload --port 8000
 Modal:      modal serve lightningfish_service.modal_app
 """
 from __future__ import annotations
-import sys
-import os
+
 import logging
+import os
+import sys
 
 # Ensure project root is on sys.path when running in Modal's container
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,20 +20,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Trigger domain registration
-import lightningfish_finance  # noqa: F401
-import lightningfish_coding   # noqa: F401
-
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+import lightningfish_coding  # noqa: F401
+import lightningfish_finance  # noqa: F401
+
 from .limiter import limiter
-from .routes import enrich, simulate, chat, backtest, keys, local
+from .routes import backtest, chat, enrich, keys, local, simulate
 
 app = FastAPI(title="Lightningfish Service", version="0.1.0")
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 _allowed_origins = os.environ.get(
     "ALLOWED_ORIGINS", "http://localhost:3000"

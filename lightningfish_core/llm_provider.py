@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 from typing import Protocol, runtime_checkable
-from anthropic import Anthropic
+
 import openai
+from anthropic import Anthropic
 
 _MODEL_COSTS: dict[str, tuple[float, float]] = {
     "claude-haiku-4-5-20251001": (0.8e-6,  4e-6),
@@ -30,7 +32,8 @@ class AnthropicProvider:
             system=system,
             messages=[{"role": "user", "content": user_msg}],
         )
-        text = response.content[0].text.strip()
+        block = response.content[0]
+        text = block.text.strip() if hasattr(block, "text") else ""
         try:
             opinion = max(-1.0, min(1.0, float(text)))
         except ValueError:

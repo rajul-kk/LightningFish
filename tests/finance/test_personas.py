@@ -1,6 +1,5 @@
-import statistics
-from lightningfish_finance.personas import build_finance_personas, short_seller_resistance
 from lightningfish_core.models import AgentPersona
+from lightningfish_finance.personas import build_finance_personas, short_seller_resistance
 
 
 def test_persona_count_close_to_n():

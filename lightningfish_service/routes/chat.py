@@ -1,11 +1,14 @@
 from __future__ import annotations
+
 import json
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from fastapi import Request
-from anthropic import Anthropic
+
 import openai as _openai
+from anthropic import Anthropic
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
+
 from lightningfish_core.registry import registry
+
 from ..db import get_simulation
 from ..limiter import limiter
 
@@ -56,10 +59,10 @@ def chat(request: Request, simulation_id: str, req: ChatRequest):
 
     if base_url is not None or model.startswith("ollama:"):
         bare = model.split(":", 1)[-1] if ":" in model else model
-        client = _openai.OpenAI(
+        local_client = _openai.OpenAI(
             base_url=base_url or "http://localhost:11434/v1", api_key="local"
         )
-        resp = client.chat.completions.create(
+        local_resp = local_client.chat.completions.create(
             model=bare,
             max_tokens=256,
             messages=[
@@ -67,15 +70,16 @@ def chat(request: Request, simulation_id: str, req: ChatRequest):
                 {"role": "user", "content": req.message},
             ],
         )
-        reply = (resp.choices[0].message.content or "").strip()
+        reply = (local_resp.choices[0].message.content or "").strip()
     else:
-        client = Anthropic()
-        resp = client.messages.create(
+        anthropic_client = Anthropic()
+        resp = anthropic_client.messages.create(
             model=model,
             max_tokens=256,
             system=system,
             messages=[{"role": "user", "content": req.message}],
         )
-        reply = resp.content[0].text.strip()
+        block = resp.content[0]
+        reply = block.text.strip() if hasattr(block, "text") else ""
 
     return {"reply": reply}

@@ -5,9 +5,11 @@ The DB layer is patched at the point of import inside the route module so no
 real database connection is required.
 """
 from __future__ import annotations
+
 import json
 import uuid
 from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
 
 # ---------------------------------------------------------------------------

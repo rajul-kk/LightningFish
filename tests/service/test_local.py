@@ -1,10 +1,11 @@
 """Route tests for GET /local/status and the _is_safe_url guard."""
 from __future__ import annotations
+
 from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
 
 from lightningfish_service.routes.local import _is_safe_url
-
 
 # ---------------------------------------------------------------------------
 # Unit tests for _is_safe_url — no HTTP involved

@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from .models import EnrichedSeed, AgentPersona, GroundTruthRecord, SimulationResult, BacktestResult
+
+from .models import AgentPersona, BacktestResult, EnrichedSeed, GroundTruthRecord, SimulationResult
 
 
 class DomainAdapter(ABC):

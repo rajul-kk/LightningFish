@@ -3,8 +3,12 @@ Converts between lightningfish_core dataclasses and plain dicts for JSON transpo
 Callables (e.g. resistance_override_fn) are excluded from serialization.
 """
 from __future__ import annotations
+
 from lightningfish_core.models import (
-    EnrichedSeed, ScrapedDocument, RoundEvent, SimulationResult,
+    EnrichedSeed,
+    RoundEvent,
+    ScrapedDocument,
+    SimulationResult,
 )
 
 

@@ -1,13 +1,21 @@
 from __future__ import annotations
+
 import math
+
 from scipy.stats import pearsonr
+
 from lightningfish_core.adapter import DomainAdapter
 from lightningfish_core.models import (
-    EnrichedSeed, AgentPersona, GroundTruthRecord, SimulationResult, BacktestResult,
+    AgentPersona,
+    BacktestResult,
+    EnrichedSeed,
+    GroundTruthRecord,
+    SimulationResult,
 )
+
+from .ground_truth import get_finance_ground_truth
 from .personas import build_finance_personas
 from .seed_enricher import enrich_finance_seed
-from .ground_truth import get_finance_ground_truth
 
 
 class FinanceDomainAdapter(DomainAdapter):

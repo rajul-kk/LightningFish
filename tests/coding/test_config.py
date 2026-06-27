@@ -1,6 +1,9 @@
 from lightningfish_coding.config import CodingDomainAdapter
 from lightningfish_core.models import (
-    EnrichedSeed, SimulationResult, GroundTruthRecord, RoundEvent,
+    EnrichedSeed,
+    GroundTruthRecord,
+    RoundEvent,
+    SimulationResult,
 )
 
 

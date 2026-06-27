@@ -9,12 +9,15 @@ Requires env vars: ANTHROPIC_API_KEY, REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET,
                    SEC_EDGAR_USER_AGENT, REDDIT_USER_AGENT
 """
 from __future__ import annotations
+
 import os
 import statistics
+
 from edgar import Company, set_identity
 
 from lightningfish_core.backtest_base import BacktestHarness
-from lightningfish_core.models import EnrichedSeed, BacktestResult
+from lightningfish_core.models import BacktestResult, EnrichedSeed
+
 from .config import FinanceDomainAdapter
 from .seed_enricher import enrich_finance_seed
 

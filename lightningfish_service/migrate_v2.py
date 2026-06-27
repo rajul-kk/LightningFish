@@ -6,7 +6,9 @@ Safe to run multiple times (IF NOT EXISTS / ADD COLUMN IF NOT EXISTS).
 Usage: python -m lightningfish_service.migrate_v2
 """
 from __future__ import annotations
+
 import os
+
 import psycopg2
 
 _SQL = """

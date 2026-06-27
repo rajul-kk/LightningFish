@@ -1,8 +1,11 @@
 import math
-from lightningfish_finance.config import FinanceDomainAdapter
+
 from lightningfish_core.models import (
-    EnrichedSeed, SimulationResult, GroundTruthRecord, RoundEvent,
+    EnrichedSeed,
+    GroundTruthRecord,
+    SimulationResult,
 )
+from lightningfish_finance.config import FinanceDomainAdapter
 
 
 def _seed() -> EnrichedSeed:

@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import requests
+
 from lightningfish_core.models import GroundTruthRecord
 
 

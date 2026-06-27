@@ -1,12 +1,17 @@
 import uuid
-import pytest
 from unittest.mock import MagicMock, patch
-from lightningfish_core.engine import SimulationEngine
-from lightningfish_core.backtest_base import BacktestHarness
-from lightningfish_core.models import (
-    AgentPersona, EnrichedSeed, SimulationResult, BacktestResult, GroundTruthRecord,
-)
+
+import pytest
+
 from lightningfish_core.adapter import DomainAdapter
+from lightningfish_core.backtest_base import BacktestHarness
+from lightningfish_core.engine import SimulationEngine
+from lightningfish_core.models import (
+    AgentPersona,
+    BacktestResult,
+    EnrichedSeed,
+    SimulationResult,
+)
 
 
 def _seed() -> EnrichedSeed:

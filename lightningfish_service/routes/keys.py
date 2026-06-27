@@ -1,11 +1,13 @@
 from __future__ import annotations
+
 import hashlib
-import os
 import secrets
 import uuid
-from fastapi import APIRouter, HTTPException
+
+from fastapi import APIRouter
 from pydantic import BaseModel
-from ..db import create_api_key, get_api_key, list_api_keys, delete_api_key
+
+from ..db import create_api_key, delete_api_key, list_api_keys
 
 router = APIRouter()
 

@@ -1,8 +1,9 @@
-from __future__ import annotations
 """Add base_url column to simulations for local LLM support."""
-import os
-import psycopg2
+from __future__ import annotations
 
+import os
+
+import psycopg2
 
 _SQL = """
 ALTER TABLE simulations ADD COLUMN IF NOT EXISTS base_url TEXT;

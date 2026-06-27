@@ -1,12 +1,19 @@
 from __future__ import annotations
+
 import os
+
 from lightningfish_core.adapter import DomainAdapter
 from lightningfish_core.models import (
-    EnrichedSeed, AgentPersona, GroundTruthRecord, SimulationResult, BacktestResult,
+    AgentPersona,
+    BacktestResult,
+    EnrichedSeed,
+    GroundTruthRecord,
+    SimulationResult,
 )
+
+from .ground_truth import get_coding_ground_truth
 from .personas import build_coding_personas
 from .seed_enricher import enrich_coding_seed
-from .ground_truth import get_coding_ground_truth
 
 
 class CodingDomainAdapter(DomainAdapter):

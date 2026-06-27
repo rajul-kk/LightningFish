@@ -27,6 +27,8 @@ dev = [
     "fastapi[standard]>=0.115.0",
     "slowapi>=0.1.9",
     "openai>=1.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
 ]
 
 [project.entry-points."lightningfish.domains"]
@@ -38,3 +40,20 @@ packages = ["lightningfish_core", "lightningfish_finance", "lightningfish_coding
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]   # pycodestyle errors, pyflakes, isort
+ignore = [
+    "E402",  # module-level import order — intentional in main.py (sys.path setup)
+    "E501",  # line too long — prompts and long f-strings are exempt
+]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+# backtest route is WIP; exclude until it's stabilised
+exclude = ["lightningfish_service/routes/backtest\\.py"]

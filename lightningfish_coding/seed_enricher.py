@@ -1,6 +1,9 @@
 from __future__ import annotations
+
 import re
+
 import requests
+
 from lightningfish_core.models import EnrichedSeed
 
 _TEST_PATTERNS = re.compile(r"(test_|_test\.|spec\.|\.spec\.|__tests__)", re.IGNORECASE)
@@ -12,10 +15,14 @@ _EXTENSION_TO_LANG = {
 
 
 def classify_diff_size(total_lines: int) -> str:
-    if total_lines < 50:    return "xs"
-    if total_lines < 200:   return "s"
-    if total_lines < 500:   return "m"
-    if total_lines < 1000:  return "l"
+    if total_lines < 50:
+        return "xs"
+    if total_lines < 200:
+        return "s"
+    if total_lines < 500:
+        return "m"
+    if total_lines < 1000:
+        return "l"
     return "xl"
 
 
@@ -41,7 +48,7 @@ def enrich_coding_seed(pr_url: str, github_token: str) -> EnrichedSeed:
     author_search = requests.get(
         "https://api.github.com/search/issues",
         headers=headers,
-        params={
+        params={  # type: ignore[arg-type]
             "q": f"author:{author} repo:{owner}/{repo} type:pr is:merged",
             "per_page": 1,
         },

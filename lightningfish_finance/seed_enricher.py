@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import yfinance as yf
+
 from lightningfish_core.models import EnrichedSeed
 
 _EVENT_KEYWORDS: dict[str, list[str]] = {

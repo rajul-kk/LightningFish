@@ -1,7 +1,8 @@
 import uuid
-from lightningfish_core.tier_router import TierRouter
+
 from lightningfish_core.models import AgentPersona, EnrichedSeed
 from lightningfish_core.rule_agent import RuleBasedAgent
+from lightningfish_core.tier_router import TierRouter
 
 
 def _persona(influence: float, archetype: str = "T") -> AgentPersona:
