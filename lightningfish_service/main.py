@@ -57,4 +57,4 @@ app.include_router(local.router, prefix="/local", tags=["local"])
 @app.get("/health", tags=["meta"])
 def health():
     from lightningfish_core.registry import registry
-    return {"status": "ok", "domains": list(registry.all().keys())}
+    return {"status": "ok", "domains": [a.domain_id for a in registry.all()]}

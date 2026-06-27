@@ -2,6 +2,7 @@ import { AgentChat } from "@/components/AgentChat";
 import { OpinionChart } from "@/components/OpinionChart";
 import { DistributionBar } from "@/components/DistributionBar";
 import { ConsensusVerdict } from "@/components/ConsensusVerdict";
+import Link from "next/link";
 import type { SimulationResult } from "@/lib/types";
 import { DOMAINS } from "@/lib/types";
 
@@ -24,9 +25,9 @@ async function getSimulation(id: string) {
 export default async function ReportPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ domain: string }>;
 }) {
-  const { id } = await params;
+  const { domain: id } = await params;
   const sim = await getSimulation(id);
 
   if (!sim || sim.status !== "complete" || !sim.result_json) {
@@ -37,9 +38,9 @@ export default async function ReportPage({
             ? "Simulation still running — refresh in a moment."
             : "Report not found or simulation failed."}
         </p>
-        <a href="/" className="text-sm text-neutral-700 underline underline-offset-2">
+        <Link href="/" className="text-sm text-neutral-700 underline underline-offset-2">
           Back to home
-        </a>
+        </Link>
       </div>
     );
   }
@@ -140,12 +141,12 @@ export default async function ReportPage({
 
       {/* Footer nav */}
       <div className="pt-4 border-t border-neutral-100 flex items-center justify-between text-sm">
-        <a href="/history" className="text-neutral-400 hover:text-neutral-900 transition-colors">
+        <Link href="/history" className="text-neutral-400 hover:text-neutral-900 transition-colors">
           &larr; History
-        </a>
-        <a href="/" className="text-neutral-400 hover:text-neutral-900 transition-colors">
+        </Link>
+        <Link href="/" className="text-neutral-400 hover:text-neutral-900 transition-colors">
           New simulation
-        </a>
+        </Link>
       </div>
     </div>
   );

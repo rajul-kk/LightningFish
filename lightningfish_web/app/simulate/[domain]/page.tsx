@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
@@ -158,9 +159,9 @@ export default function SimulatePage() {
   return (
     <div className="max-w-xl mx-auto px-6 py-16">
       <div className="mb-8">
-        <a href="/" className="text-sm text-neutral-400 hover:text-neutral-700 transition-colors">
+        <Link href="/" className="text-sm text-neutral-400 hover:text-neutral-700 transition-colors">
           &larr; Back
-        </a>
+        </Link>
         <h1 className="text-2xl font-semibold mt-4 mb-1">{domainMeta.label}</h1>
         <p className="text-neutral-500 text-sm">{domainMeta.description}</p>
       </div>

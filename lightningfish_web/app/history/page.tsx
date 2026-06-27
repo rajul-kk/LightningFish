@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 
 async function getHistory(userId: string) {
@@ -53,12 +54,12 @@ export default async function HistoryPage() {
       {simulations.length === 0 ? (
         <div className="text-center py-16 text-neutral-400">
           <p className="mb-4">No simulations yet.</p>
-          <a
+          <Link
             href="/"
             className="text-sm text-neutral-700 underline underline-offset-2"
           >
             Run your first simulation
-          </a>
+          </Link>
         </div>
       ) : (
         <div className="border border-neutral-200 rounded-xl overflow-hidden">

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { OpinionChart } from "@/components/OpinionChart";
 import { DistributionBar } from "@/components/DistributionBar";
 import { ConsensusVerdict } from "@/components/ConsensusVerdict";
@@ -43,12 +44,12 @@ export default function DemoReportPage() {
         <span className="text-amber-700 text-xs">
           This is a preview with mock data. No simulation was run.
         </span>
-        <a
+        <Link
           href="/simulate/finance"
           className="ml-auto text-xs text-amber-700 underline underline-offset-2 hover:text-amber-900 whitespace-nowrap"
         >
           Run a real one →
-        </a>
+        </Link>
       </div>
 
       {/* Header */}
@@ -115,12 +116,12 @@ export default function DemoReportPage() {
         <div className="border border-neutral-200 rounded-xl px-4 py-8 text-center">
           <p className="text-sm text-neutral-400">
             Agent chat requires a completed simulation.{" "}
-            <a
+            <Link
               href="/simulate/finance"
               className="underline underline-offset-2 hover:text-neutral-700"
             >
               Run one →
-            </a>
+            </Link>
           </p>
         </div>
       </div>
@@ -152,18 +153,18 @@ export default function DemoReportPage() {
 
       {/* Footer nav */}
       <div className="pt-4 border-t border-neutral-100 flex items-center justify-between text-sm">
-        <a
+        <Link
           href="/"
           className="text-neutral-400 hover:text-neutral-900 transition-colors"
         >
           &larr; Home
-        </a>
-        <a
+        </Link>
+        <Link
           href="/simulate/finance"
           className="text-neutral-400 hover:text-neutral-900 transition-colors"
         >
           Run a real simulation →
-        </a>
+        </Link>
       </div>
     </div>
   );

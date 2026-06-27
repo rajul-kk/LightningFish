@@ -19,7 +19,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0.0", "pytest-mock>=3.12.0"]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.12.0",
+    "psycopg2-binary>=2.9.0",
+    "httpx>=0.27.0",
+    "fastapi[standard]>=0.115.0",
+    "slowapi>=0.1.9",
+    "openai>=1.0",
+]
 
 [project.entry-points."lightningfish.domains"]
 finance = "lightningfish_finance:adapter"

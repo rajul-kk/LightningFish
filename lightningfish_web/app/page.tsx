@@ -54,12 +54,12 @@ export default function HomePage() {
         <p className="text-sm text-neutral-400">
           Built on calibrated behavioral archetypes grounded in academic
           literature.{" "}
-          <a
+          <Link
             href="/report/demo"
             className="text-neutral-700 underline underline-offset-2 hover:text-neutral-900"
           >
             Preview a sample report
-          </a>{" "}
+          </Link>{" "}
           or{" "}
           <a
             href="/dev/keys"

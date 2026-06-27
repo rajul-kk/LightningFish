@@ -51,8 +51,9 @@ def list_simulations(user_id: str, limit: int = 50):
 @limiter.limit("5/minute")
 def create(request: Request, req: SimulateRequest):
     """Enrich the seed, store the simulation record, return simulation_id."""
-    adapter = registry.get(req.domain_id)
-    if adapter is None:
+    try:
+        adapter = registry.get(req.domain_id)
+    except KeyError:
         raise HTTPException(status_code=404, detail=f"Unknown domain: {req.domain_id}")
 
     seed = adapter.enrich_seed(req.raw_input)

@@ -7,39 +7,36 @@ import { DistributionBar } from "@/components/DistributionBar";
 import { RoundFeed } from "@/components/RoundFeed";
 import { CostMeter } from "@/components/CostMeter";
 
-// Finance defaults — actual poles come from the simulation domain.
-// The live page doesn't know the domain until it starts receiving events,
-// so we use safe generic labels.
 const DEFAULT_NEGATIVE = "Negative";
 const DEFAULT_POSITIVE = "Positive";
 
 export default function LivePage() {
-  const { id } = useParams<{ id: string }>();
+  // In this route, [domain] holds the simulation UUID (e.g. /simulate/{uuid}/live)
+  const { domain: simulationId } = useParams<{ domain: string }>();
   const router = useRouter();
   const redirectedRef = useRef(false);
 
-  const { rounds, isComplete, error, totalCost } = useSimulationStream(id ?? null);
+  const { rounds, isComplete, error } = useSimulationStream(simulationId ?? null);
 
   useEffect(() => {
     if (isComplete && !redirectedRef.current) {
       redirectedRef.current = true;
-      router.push(`/report/${id}`);
+      router.push(`/report/${simulationId}`);
     }
-  }, [isComplete, id, router]);
+  }, [isComplete, simulationId, router]);
 
   const trajectory = rounds.map((r) => r.mean_opinion);
   const latest = rounds[rounds.length - 1];
   const distribution = latest?.opinion_distribution ?? [];
 
-  // Estimate total rounds from the first URL query param if available
-  const totalRounds = 12; // fallback default shown in UI
+  const totalRounds = 12;
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Simulation running</h1>
-          <p className="text-sm text-neutral-400 mt-1 font-mono">{id}</p>
+          <p className="text-sm text-neutral-400 mt-1 font-mono">{simulationId}</p>
         </div>
         {isComplete && (
           <span className="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">

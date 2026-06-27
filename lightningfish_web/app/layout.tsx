@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ClerkProvider, SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/nextjs";
+import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,37 +7,62 @@ export const metadata: Metadata = {
   description: "Multi-agent opinion simulation for finance and code review",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// Clerk is optional: if NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is a real key the full
+// auth UI is rendered; without it (or with the placeholder) public pages still work.
+const CLERK_KEY = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+const HAS_CLERK =
+  CLERK_KEY.startsWith("pk_") &&
+  CLERK_KEY !== "pk_test_bGlnaHRuaW5nZmlzaC5sb2NhbGhvc3Qk";
+
+async function AuthNav() {
+  if (!HAS_CLERK) return null;
+  const { SignedIn, SignedOut, UserButton, SignInButton } = await import("@clerk/nextjs");
+  return (
+    <>
+      <SignedIn>
+        <a href="/history" className="hover:text-neutral-900 transition-colors">
+          History
+        </a>
+        <a href="/dev/keys" className="hover:text-neutral-900 transition-colors">
+          API Keys
+        </a>
+        <UserButton />
+      </SignedIn>
+      <SignedOut>
+        <SignInButton>
+          <button className="text-neutral-900 font-medium hover:underline">Sign in</button>
+        </SignInButton>
+      </SignedOut>
+    </>
+  );
+}
+
+async function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body className="min-h-screen bg-white text-neutral-900">
+        <header className="border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="text-sm font-semibold tracking-tight">
+            Lightningfish
+          </Link>
+          <nav className="flex items-center gap-6 text-sm text-neutral-500">
+            <AuthNav />
+          </nav>
+        </header>
+        <main>{children}</main>
+      </body>
+    </html>
+  );
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  if (!HAS_CLERK) {
+    return <Shell>{children}</Shell>;
+  }
+  const { ClerkProvider } = await import("@clerk/nextjs");
   return (
     <ClerkProvider>
-      <html lang="en">
-        <body className="min-h-screen bg-white text-neutral-900">
-          <header className="border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
-            <a href="/" className="text-sm font-semibold tracking-tight">
-              Lightningfish
-            </a>
-            <nav className="flex items-center gap-6 text-sm text-neutral-500">
-              <SignedIn>
-                <a href="/history" className="hover:text-neutral-900 transition-colors">
-                  History
-                </a>
-                <a href="/dev/keys" className="hover:text-neutral-900 transition-colors">
-                  API Keys
-                </a>
-                <UserButton />
-              </SignedIn>
-              <SignedOut>
-                <SignInButton>
-                  <button className="text-neutral-900 font-medium hover:underline">
-                    Sign in
-                  </button>
-                </SignInButton>
-              </SignedOut>
-            </nav>
-          </header>
-          <main>{children}</main>
-        </body>
-      </html>
+      <Shell>{children}</Shell>
     </ClerkProvider>
   );
 }
