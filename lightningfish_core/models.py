@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .social import SocialMetrics
 
 
 @dataclass
@@ -45,7 +49,7 @@ class RoundEvent:
     tier1_calls: int
     active_agent_ids: list[str]
     estimated_cost_usd: float
-    social_metrics: object | None = None   # SocialMetrics; typed as object to avoid circular import
+    social_metrics: SocialMetrics | None = None
     sample_posts: list = field(default_factory=list)
 
 

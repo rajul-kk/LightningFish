@@ -1,3 +1,12 @@
+export interface SocialPost {
+  agent_id: string;
+  archetype: string;
+  stance: string;
+  argument_tag: string;
+  confidence: number;
+  blurb: string;
+}
+
 export interface RoundEvent {
   round_number: number;
   mean_opinion: number;
@@ -6,6 +15,14 @@ export interface RoundEvent {
   active_agent_ids: string[];
   estimated_cost_usd: number;
   opinion_distribution?: number[];
+  // social fields (optional — present when social sim is running)
+  herding_index?: number;
+  herding_delta?: number;
+  argument_diversity_score?: number;
+  cascade_detected?: boolean;
+  cascade_trigger_archetype?: string | null;
+  new_argument_tags?: string[];
+  sample_posts?: SocialPost[];
 }
 
 export interface SimulationCompleteEvent {
@@ -29,6 +46,9 @@ export interface SimulationResult {
   seed_summary: string;
   domain_id: string;
   event_type: string;
+  // social sim fields (present when engine ran with social layer)
+  herding_curve?: number[];
+  argument_timeline?: Record<string, number>;
 }
 
 export interface Simulation {

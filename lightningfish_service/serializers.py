@@ -10,6 +10,7 @@ from lightningfish_core.models import (
     ScrapedDocument,
     SimulationResult,
 )
+from lightningfish_core.social import SocialMetrics
 
 
 def seed_to_dict(seed: EnrichedSeed) -> dict:
