@@ -88,3 +88,83 @@ def test_make_provider_returns_local_when_base_url_provided():
     with patch("lightningfish_core.llm_provider.openai.OpenAI"):
         p = make_provider("claude-sonnet-4-6", base_url="http://192.168.1.10:11434/v1")
     assert isinstance(p, LocalProvider)
+
+
+# — new post generation + batch opinion tests —
+
+def test_parse_post_response_valid():
+    from lightningfish_core.llm_provider import _parse_post_response
+    raw = "STANCE: bullish\nTAG: valuation\nCONFIDENCE: 0.72\nBLURB: Strong FCF yield signals upside.\n0.45"
+    post, opinion = _parse_post_response(raw, agent_id="a1", archetype="Analyst", round_number=1, opinion_before=0.1)
+    assert post.stance == "bullish"
+    assert post.argument_tag == "valuation"
+    assert abs(post.confidence - 0.72) < 0.001
+    assert "FCF" in post.blurb
+    assert abs(opinion - 0.45) < 0.001
+    assert abs(post.opinion_after - 0.45) < 0.001
+
+
+def test_parse_post_response_malformed_falls_back():
+    from lightningfish_core.llm_provider import _parse_post_response
+    raw = "I think this is bullish because earnings were great."
+    post, opinion = _parse_post_response(raw, agent_id="a1", archetype="Analyst", round_number=1, opinion_before=0.2)
+    assert post.argument_tag == "other"
+    assert abs(opinion - 0.2) < 0.01
+
+
+def test_parse_post_response_opinion_clamped():
+    from lightningfish_core.llm_provider import _parse_post_response
+    raw = "STANCE: bullish\nTAG: momentum\nCONFIDENCE: 0.9\nBLURB: Rocket.\n2.5"
+    _, opinion = _parse_post_response(raw, agent_id="a1", archetype="T", round_number=1, opinion_before=0.0)
+    assert opinion <= 1.0
+
+
+def test_anthropic_generate_post_calls_messages_create():
+    from lightningfish_core.llm_provider import AnthropicProvider
+    raw = "STANCE: bearish\nTAG: macro\nCONFIDENCE: 0.8\nBLURB: Rate hikes incoming.\n-0.6"
+    client = _mock_anthropic_client(raw, input_tokens=120, output_tokens=30)
+    provider = AnthropicProvider(client)
+    post, opinion, cost = provider.generate_post(
+        system="You are a trader.", model="claude-sonnet-4-6",
+        agent_id="a1", archetype="Trader", round_number=1, opinion_before=-0.2,
+    )
+    assert post.argument_tag == "macro"
+    assert abs(opinion - (-0.6)) < 0.01
+    assert cost > 0
+
+
+def test_anthropic_batch_opinions_from_feed():
+    from lightningfish_core.llm_provider import AnthropicProvider
+    client = _mock_anthropic_client("-0.3\n0.5\n0.1", input_tokens=200, output_tokens=15)
+    provider = AnthropicProvider(client)
+    opinions, cost = provider.batch_opinions_from_feed(
+        systems=["sys1", "sys2", "sys3"],
+        model="claude-sonnet-4-6",
+    )
+    assert len(opinions) == 3
+    assert abs(opinions[0] - (-0.3)) < 0.01
+    assert cost > 0
+
+
+def test_anthropic_batch_opinions_empty_input():
+    from lightningfish_core.llm_provider import AnthropicProvider
+    client = _mock_anthropic_client()
+    provider = AnthropicProvider(client)
+    opinions, cost = provider.batch_opinions_from_feed(systems=[], model="claude-sonnet-4-6")
+    assert opinions == []
+    assert cost == 0.0
+
+
+def test_local_generate_post_parses_response():
+    from lightningfish_core.llm_provider import LocalProvider
+    raw = "STANCE: approve\nTAG: correctness\nCONFIDENCE: 0.85\nBLURB: Tests cover all paths.\n0.7"
+    with patch("lightningfish_core.llm_provider.openai.OpenAI") as mock_cls:
+        mock_cls.return_value = _mock_openai_client(raw)
+        provider = LocalProvider()
+    post, opinion, cost = provider.generate_post(
+        system="You are a reviewer.", model="llama3",
+        agent_id="b1", archetype="SeniorDev", round_number=2, opinion_before=0.3,
+    )
+    assert post.argument_tag == "correctness"
+    assert abs(opinion - 0.7) < 0.01
+    assert cost == 0.0
