@@ -32,6 +32,7 @@ class AgentPersona:
     influence_weight: float     # 0-1, pull on neighbours
     proportion: float           # population share for this archetype
     current_opinion: float = 0.0  # -1 to +1
+    herding_coefficient: float = 0.3
     metadata: dict = field(default_factory=dict)
 
 
@@ -44,6 +45,8 @@ class RoundEvent:
     tier1_calls: int
     active_agent_ids: list[str]
     estimated_cost_usd: float
+    social_metrics: object | None = None   # SocialMetrics; typed as object to avoid circular import
+    sample_posts: list = field(default_factory=list)
 
 
 @dataclass
@@ -54,6 +57,8 @@ class SimulationResult:
     final_distribution: list[float]
     total_tier1_calls: int
     total_cost_usd: float
+    herding_curve: list[float] = field(default_factory=list)
+    argument_timeline: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
