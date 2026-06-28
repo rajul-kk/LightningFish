@@ -2,15 +2,16 @@ import uuid
 
 from lightningfish_core.models import AgentPersona, EnrichedSeed
 from lightningfish_core.rule_agent import RuleBasedAgent
-from lightningfish_core.tier_router import TierRouter
+from lightningfish_core.tier_router import SettledTracker, TierRouter
 
 
-def _persona(influence: float, archetype: str = "T") -> AgentPersona:
+def _persona(influence: float, opinion: float = 0.0, archetype: str = "T") -> AgentPersona:
     return AgentPersona(
         unique_id=str(uuid.uuid4()), archetype=archetype,
         opinion_resistance=0.5, recency_bias=0.5,
         contrarian_tendency=0.2, influence_weight=influence,
         proportion=0.1,
+        current_opinion=opinion,
     )
 
 
@@ -19,23 +20,23 @@ class ConcreteRuleAgent(RuleBasedAgent):
         return 1.0
 
 
-def test_high_influence_agents_become_active():
-    # 25 agents: 10% cap = 2, so both high-influence agents should be active
+# — existing behaviour preserved with new API —
+
+def test_high_influence_agents_go_to_t1():
     router = TierRouter()
     agents = [_persona(0.9), _persona(0.9)] + [_persona(0.3) for _ in range(23)]
-    result = router.route(agents)
-    assert len(result["active"]) == 2
-    assert len(result["followers"]) == 23
+    result = router.route(agents, settled_ids=set(), round_number=1)
+    assert len(result["t1"]) == 2
 
 
-def test_tier1_hard_cap_enforced():
+def test_t1_hard_cap_enforced():
     router = TierRouter()
     agents = [_persona(0.9) for _ in range(20)]
-    result = router.route(agents)
-    assert len(result["active"]) <= max(1, int(20 * 0.10))
+    result = router.route(agents, settled_ids=set(), round_number=1)
+    assert len(result["t1"]) <= max(1, int(20 * 0.10))
 
 
-def test_rule_based_agents_always_go_to_followers():
+def test_rule_based_agents_go_to_t3():
     router = TierRouter()
     rule_agent = ConcreteRuleAgent(
         unique_id=str(uuid.uuid4()), archetype="CI",
@@ -44,13 +45,76 @@ def test_rule_based_agents_always_go_to_followers():
         proportion=0.1,
     )
     regular = _persona(0.9)
-    result = router.route([rule_agent, regular])
-    follower_ids = {a.unique_id for a in result["followers"]}
-    assert rule_agent.unique_id in follower_ids
+    result = router.route([rule_agent, regular], settled_ids=set(), round_number=1)
+    t3_ids = {a.unique_id for a in result["t3"]}
+    assert rule_agent.unique_id in t3_ids
 
 
-def test_active_plus_followers_equals_total():
+def test_t1_plus_t2_plus_t3_equals_total():
     router = TierRouter()
     agents = [_persona(0.9 if i < 5 else 0.3) for i in range(20)]
-    result = router.route(agents)
-    assert len(result["active"]) + len(result["followers"]) == 20
+    result = router.route(agents, settled_ids=set(), round_number=1)
+    assert len(result["t1"]) + len(result["t2"]) + len(result["t3"]) == 20
+
+
+# — new T2 and SettledTracker tests —
+
+def test_route_returns_t1_t2_t3_keys():
+    router = TierRouter()
+    agents = [_persona(0.9), _persona(0.5), _persona(0.3, opinion=0.1)]
+    result = router.route(agents, settled_ids=set(), round_number=1)
+    assert set(result.keys()) == {"t1", "t2", "t3"}
+
+
+def test_t2_agents_are_uncertain():
+    router = TierRouter()
+    agents = [_persona(0.95), _persona(0.90)] + [_persona(0.3, opinion=0.05) for _ in range(18)]
+    result = router.route(agents, settled_ids=set(), round_number=1)
+    for a in result["t2"]:
+        assert abs(a.current_opinion) < 0.4
+
+
+def test_settled_agents_go_to_t3():
+    router = TierRouter()
+    agents = [_persona(0.95), _persona(0.85)]
+    settled = {agents[0].unique_id}
+    result = router.route(agents, settled_ids=settled, round_number=1)
+    t1_ids = {a.unique_id for a in result["t1"]}
+    assert agents[0].unique_id not in t1_ids
+    t3_ids = {a.unique_id for a in result["t3"]}
+    assert agents[0].unique_id in t3_ids
+
+
+def test_t2_capped_at_20_percent():
+    router = TierRouter()
+    agents = [_persona(0.3, opinion=0.05) for _ in range(100)]
+    result = router.route(agents, settled_ids=set(), round_number=1)
+    assert len(result["t2"]) <= 20
+
+
+def test_settled_tracker_marks_stable_agents():
+    tracker = SettledTracker(threshold=0.03, patience=2)
+    agent = _persona(0.5, opinion=0.5)
+    tracker.update([agent])
+    agent.current_opinion = 0.501
+    tracker.update([agent])
+    settled = tracker.update([agent])
+    assert agent.unique_id in settled
+
+
+def test_settled_tracker_resets_on_large_change():
+    tracker = SettledTracker(threshold=0.03, patience=2)
+    agent = _persona(0.5, opinion=0.5)
+    tracker.update([agent])
+    agent.current_opinion = 0.501
+    tracker.update([agent])
+    agent.current_opinion = 0.8
+    settled = tracker.update([agent])
+    assert agent.unique_id not in settled
+
+
+def test_settled_tracker_returns_set():
+    tracker = SettledTracker()
+    agent = _persona(0.5)
+    result = tracker.update([agent])
+    assert isinstance(result, set)
