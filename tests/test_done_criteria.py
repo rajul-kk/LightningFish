@@ -29,12 +29,12 @@ def test_tier1_hard_cap_both_domains():
     router = TierRouter()
     for n in [100, 500, 1000]:
         finance_agents = build_finance_personas(n)
-        tiers = router.route(finance_agents)
-        assert len(tiers["active"]) / n <= 0.10 + 1e-9, f"Finance cap violated at n={n}"
+        tiers = router.route(finance_agents, settled_ids=set(), round_number=1)
+        assert len(tiers["t1"]) / n <= 0.10 + 1e-9, f"Finance cap violated at n={n}"
 
         coding_agents = build_coding_personas(n)
-        tiers = router.route(coding_agents)
-        assert len(tiers["active"]) / n <= 0.10 + 1e-9, f"Coding cap violated at n={n}"
+        tiers = router.route(coding_agents, settled_ids=set(), round_number=1)
+        assert len(tiers["t1"]) / n <= 0.10 + 1e-9, f"Coding cap violated at n={n}"
 
 
 def test_finance_archetype_parameter_diversity():
