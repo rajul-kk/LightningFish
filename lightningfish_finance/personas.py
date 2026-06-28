@@ -20,13 +20,13 @@ def short_seller_resistance(agent: AgentPersona, social_signal: float) -> float:
 
 # Parameters from Kahneman-Tversky prospect theory and behavioural finance literature.
 _ARCHETYPE_CONFIGS: list[dict] = [
-    dict(archetype="ValueInvestor",        opinion_resistance=0.85, recency_bias=0.10, contrarian_tendency=0.70, influence_weight=0.60, proportion=0.12),
-    dict(archetype="MomentumTrader",       opinion_resistance=0.20, recency_bias=0.90, contrarian_tendency=0.05, influence_weight=0.40, proportion=0.18),
-    dict(archetype="RetailFOMO",           opinion_resistance=0.15, recency_bias=0.95, contrarian_tendency=0.02, influence_weight=0.20, proportion=0.35),
-    dict(archetype="ShortSeller",          opinion_resistance=0.90, recency_bias=0.30, contrarian_tendency=0.95, influence_weight=0.70, proportion=0.05, metadata={"resistance_override_fn": short_seller_resistance}),
-    dict(archetype="InstitutionalAnalyst", opinion_resistance=0.60, recency_bias=0.40, contrarian_tendency=0.30, influence_weight=0.90, proportion=0.10),
-    dict(archetype="MacroTourist",         opinion_resistance=0.40, recency_bias=0.60, contrarian_tendency=0.20, influence_weight=0.30, proportion=0.08),
-    dict(archetype="PassiveLurker",        opinion_resistance=0.50, recency_bias=0.50, contrarian_tendency=0.10, influence_weight=0.05, proportion=0.12),
+    dict(archetype="ValueInvestor",        opinion_resistance=0.85, recency_bias=0.10, contrarian_tendency=0.70, influence_weight=0.60, proportion=0.12, herding_coefficient=-0.15),
+    dict(archetype="MomentumTrader",       opinion_resistance=0.20, recency_bias=0.90, contrarian_tendency=0.05, influence_weight=0.40, proportion=0.18, herding_coefficient=0.55),
+    dict(archetype="RetailFOMO",           opinion_resistance=0.15, recency_bias=0.95, contrarian_tendency=0.02, influence_weight=0.20, proportion=0.35, herding_coefficient=0.70),
+    dict(archetype="ShortSeller",          opinion_resistance=0.90, recency_bias=0.30, contrarian_tendency=0.95, influence_weight=0.70, proportion=0.05, herding_coefficient=-0.30, metadata={"resistance_override_fn": short_seller_resistance}),
+    dict(archetype="InstitutionalAnalyst", opinion_resistance=0.60, recency_bias=0.40, contrarian_tendency=0.30, influence_weight=0.90, proportion=0.10, herding_coefficient=0.20),
+    dict(archetype="MacroTourist",         opinion_resistance=0.40, recency_bias=0.60, contrarian_tendency=0.20, influence_weight=0.30, proportion=0.08, herding_coefficient=0.35),
+    dict(archetype="PassiveLurker",        opinion_resistance=0.50, recency_bias=0.50, contrarian_tendency=0.10, influence_weight=0.05, proportion=0.12, herding_coefficient=0.45),
 ]
 
 
@@ -62,6 +62,7 @@ def build_finance_personas(
                 contrarian_tendency=cfg["contrarian_tendency"],
                 influence_weight=cfg["influence_weight"],
                 proportion=proportion,
+                herding_coefficient=cfg.get("herding_coefficient", 0.3),
                 current_opinion=random.uniform(-0.15, 0.15),
                 metadata=cfg.get("metadata", {}),
             ))

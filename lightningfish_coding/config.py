@@ -3,6 +3,11 @@ from __future__ import annotations
 import os
 
 from lightningfish_core.adapter import DomainAdapter
+
+_CODING_TAXONOMY = [
+    "correctness", "performance", "maintainability", "security",
+    "design", "testing", "complexity", "compatibility",
+]
 from lightningfish_core.models import (
     AgentPersona,
     BacktestResult,
@@ -49,6 +54,45 @@ class CodingDomainAdapter(DomainAdapter):
             f"- Current opinion: {persona.current_opinion:.2f} (-1=block, +1=approve)\n\n"
             f"Output your review opinion as a single float between -1.0 (block) and 1.0 (approve). "
             f"Output ONLY the number."
+        )
+
+    def argument_taxonomy(self) -> list[str]:
+        return list(_CODING_TAXONOMY)
+
+    def post_system_prompt(self, seed, persona, feed, viral) -> str:
+        taxonomy_str = ", ".join(_CODING_TAXONOMY)
+        meta = seed.metadata
+        feed_section = ""
+        if feed:
+            lines = [f"  [{p.archetype}] [{p.argument_tag}] {p.blurb}" for p in feed]
+            feed_section = "Recent review comments you have seen:\n" + "\n".join(lines) + "\n\n"
+        viral_section = ""
+        if viral is not None:
+            viral_section = (
+                f"Highly-endorsed comment: [{viral.archetype}] "
+                f"[{viral.argument_tag}] {viral.blurb}\n\n"
+            )
+        return (
+            f"You are a {persona.archetype} on a code review team.\n\n"
+            f"PR: {seed.summary}\n"
+            f"Diff size: {meta.get('diff_size_tier', 'unknown')}. "
+            f"Languages: {', '.join(meta.get('languages_touched', []))}. "
+            f"Tests included: {meta.get('is_test_included')}.\n\n"
+            f"{feed_section}"
+            f"{viral_section}"
+            f"Your current opinion: {persona.current_opinion:.2f} (-1=block, +1=approve)\n\n"
+            f"Write a short review comment in the following EXACT format:\n"
+            f"STANCE: approve|block\n"
+            f"TAG: one of [{taxonomy_str}]\n"
+            f"CONFIDENCE: 0.0-1.0\n"
+            f"BLURB: one sentence ≤60 words explaining your concern or approval\n\n"
+            f"Then on the NEXT LINE output your updated opinion as a single float [-1.0, 1.0].\n"
+            f"Example:\n"
+            f"STANCE: block\n"
+            f"TAG: security\n"
+            f"CONFIDENCE: 0.88\n"
+            f"BLURB: The SQL query in line 42 is vulnerable to injection without parameterization.\n"
+            f"-0.7"
         )
 
     def get_ground_truth(self, seed: EnrichedSeed) -> GroundTruthRecord | None:

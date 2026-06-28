@@ -24,15 +24,15 @@ class CIBot(RuleBasedAgent):
 
 
 _ARCHETYPE_CONFIGS: list[dict] = [
-    dict(archetype="SecurityReviewer",       opinion_resistance=0.80, recency_bias=0.20, contrarian_tendency=0.60, influence_weight=0.75, proportion=0.10),
-    dict(archetype="PerformanceReviewer",    opinion_resistance=0.70, recency_bias=0.30, contrarian_tendency=0.40, influence_weight=0.55, proportion=0.10),
-    dict(archetype="StyleMaintainability",   opinion_resistance=0.40, recency_bias=0.50, contrarian_tendency=0.20, influence_weight=0.35, proportion=0.20),
-    dict(archetype="DomainExpertMaintainer", opinion_resistance=0.85, recency_bias=0.15, contrarian_tendency=0.50, influence_weight=0.90, proportion=0.08),
-    dict(archetype="JuniorContributor",      opinion_resistance=0.20, recency_bias=0.80, contrarian_tendency=0.05, influence_weight=0.15, proportion=0.40),
+    dict(archetype="SecurityReviewer",       opinion_resistance=0.80, recency_bias=0.20, contrarian_tendency=0.60, influence_weight=0.75, proportion=0.10, herding_coefficient=-0.10),
+    dict(archetype="PerformanceReviewer",    opinion_resistance=0.70, recency_bias=0.30, contrarian_tendency=0.40, influence_weight=0.55, proportion=0.10, herding_coefficient=0.15),
+    dict(archetype="StyleMaintainability",   opinion_resistance=0.40, recency_bias=0.50, contrarian_tendency=0.20, influence_weight=0.35, proportion=0.20, herding_coefficient=0.40),
+    dict(archetype="DomainExpertMaintainer", opinion_resistance=0.85, recency_bias=0.15, contrarian_tendency=0.50, influence_weight=0.90, proportion=0.08, herding_coefficient=0.10),
+    dict(archetype="JuniorContributor",      opinion_resistance=0.20, recency_bias=0.80, contrarian_tendency=0.05, influence_weight=0.15, proportion=0.40, herding_coefficient=0.65),
 ]
 _CIBOT_CONFIG = dict(
     archetype="CIBot", opinion_resistance=0.99, recency_bias=0.99,
-    contrarian_tendency=0.0, influence_weight=0.50, proportion=0.12,
+    contrarian_tendency=0.0, influence_weight=0.50, proportion=0.12, herding_coefficient=0.0,
 )
 
 
@@ -72,6 +72,7 @@ def build_coding_personas(
                     contrarian_tendency=cfg["contrarian_tendency"],
                     influence_weight=cfg["influence_weight"],
                     proportion=proportion,
+                    herding_coefficient=cfg.get("herding_coefficient", 0.0),
                 ))
         else:
             for _ in range(count):
@@ -83,6 +84,7 @@ def build_coding_personas(
                     contrarian_tendency=cfg["contrarian_tendency"],
                     influence_weight=cfg["influence_weight"],
                     proportion=proportion,
+                    herding_coefficient=cfg.get("herding_coefficient", 0.3),
                     current_opinion=random.uniform(-0.1, 0.1),
                 ))
     return personas

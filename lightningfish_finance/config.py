@@ -5,6 +5,11 @@ import math
 from scipy.stats import pearsonr
 
 from lightningfish_core.adapter import DomainAdapter
+
+_FINANCE_TAXONOMY = [
+    "valuation", "momentum", "macro", "quality",
+    "technical", "sentiment", "liquidity", "catalyst",
+]
 from lightningfish_core.models import (
     AgentPersona,
     BacktestResult,
@@ -48,6 +53,41 @@ class FinanceDomainAdapter(DomainAdapter):
             f"- Current opinion: {persona.current_opinion:.2f} (-1=very bearish, +1=very bullish)\n\n"
             f"Based on this 8-K filing and your investment style, output your updated opinion as a "
             f"single float between -1.0 (very bearish) and 1.0 (very bullish). Output ONLY the number."
+        )
+
+    def argument_taxonomy(self) -> list[str]:
+        return list(_FINANCE_TAXONOMY)
+
+    def post_system_prompt(self, seed, persona, feed, viral) -> str:
+        taxonomy_str = ", ".join(_FINANCE_TAXONOMY)
+        feed_section = ""
+        if feed:
+            lines = [f"  [{p.archetype}] [{p.argument_tag}] {p.blurb}" for p in feed]
+            feed_section = "Recent posts you have seen:\n" + "\n".join(lines) + "\n\n"
+        viral_section = ""
+        if viral is not None:
+            viral_section = (
+                f"Trending post (high confidence): [{viral.archetype}] "
+                f"[{viral.argument_tag}] {viral.blurb}\n\n"
+            )
+        return (
+            f"You are a {persona.archetype} investor.\n\n"
+            f"Event: {seed.summary}\n\n"
+            f"{feed_section}"
+            f"{viral_section}"
+            f"Your current opinion: {persona.current_opinion:.2f} (-1=very bearish, +1=very bullish)\n\n"
+            f"Write a short post about this event in the following EXACT format:\n"
+            f"STANCE: bullish|bearish\n"
+            f"TAG: one of [{taxonomy_str}]\n"
+            f"CONFIDENCE: 0.0-1.0\n"
+            f"BLURB: one sentence ≤60 words explaining your view\n\n"
+            f"Then on the NEXT LINE output your updated opinion as a single float [-1.0, 1.0].\n"
+            f"Example:\n"
+            f"STANCE: bullish\n"
+            f"TAG: valuation\n"
+            f"CONFIDENCE: 0.72\n"
+            f"BLURB: FCF yield of 6% at current multiples signals undervaluation relative to growth.\n"
+            f"0.45"
         )
 
     def get_ground_truth(self, seed: EnrichedSeed) -> GroundTruthRecord | None:
