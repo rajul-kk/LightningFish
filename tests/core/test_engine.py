@@ -36,6 +36,8 @@ class StubAdapter(DomainAdapter):
     def agent_system_prompt(self, seed, persona): return "You are a test agent."
     def get_ground_truth(self, seed): return None
     def score(self, result, truth): return BacktestResult(True, 0.5, {}, 0, 0.0)
+    def argument_taxonomy(self): return ["a", "b", "c", "d", "e", "f", "g", "h"]
+    def post_system_prompt(self, seed, persona, feed, viral): return "You are a test agent."
 
 
 def _mock_anthropic(opinion_text: str = "0.4"):

@@ -14,6 +14,8 @@ class MockAdapter(DomainAdapter):
     def agent_system_prompt(self, seed, persona): return ""
     def get_ground_truth(self, seed): return None
     def score(self, result, truth): return BacktestResult(False, 0.0, {}, 0, 0.0)
+    def argument_taxonomy(self): return ["a", "b", "c", "d", "e", "f", "g", "h"]
+    def post_system_prompt(self, seed, persona, feed, viral): return ""
 
 
 def test_register_and_get():
