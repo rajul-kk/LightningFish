@@ -42,7 +42,7 @@ def seed_from_dict(d: dict) -> EnrichedSeed:
 
 
 def round_event_to_dict(event: RoundEvent) -> dict:
-    return {
+    d: dict = {
         "round_number": event.round_number,
         "mean_opinion": event.mean_opinion,
         "stddev_opinion": event.stddev_opinion,
@@ -51,6 +51,28 @@ def round_event_to_dict(event: RoundEvent) -> dict:
         "estimated_cost_usd": event.estimated_cost_usd,
         "opinion_distribution": event.opinion_distribution,
     }
+    if event.social_metrics is not None:
+        m = event.social_metrics
+        d["herding_index"] = m.herding_index
+        d["herding_delta"] = m.herding_delta
+        d["argument_tags_this_round"] = m.argument_tags_this_round
+        d["new_argument_tags"] = m.new_argument_tags
+        d["argument_diversity_score"] = m.argument_diversity_score
+        d["cascade_detected"] = m.cascade_detected
+        d["cascade_trigger_archetype"] = m.cascade_trigger_archetype
+        d["settled_fraction"] = m.settled_fraction
+    d["sample_posts"] = [
+        {
+            "agent_id": p.agent_id,
+            "archetype": p.archetype,
+            "stance": p.stance,
+            "argument_tag": p.argument_tag,
+            "confidence": p.confidence,
+            "blurb": p.blurb,
+        }
+        for p in event.sample_posts
+    ]
+    return d
 
 
 def result_to_dict(result: SimulationResult) -> dict:
@@ -62,4 +84,6 @@ def result_to_dict(result: SimulationResult) -> dict:
         "seed_summary": result.seed.summary,
         "domain_id": result.seed.domain_id,
         "event_type": result.seed.event_type,
+        "herding_curve": result.herding_curve,
+        "argument_timeline": result.argument_timeline,
     }
