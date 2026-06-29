@@ -4,9 +4,11 @@ import json
 import logging
 import uuid
 
-from fastapi import APIRouter, HTTPException, Request
+import re
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from lightningfish_core.engine import SimulationEngine
 from lightningfish_core.registry import registry
@@ -19,8 +21,12 @@ from ..db import (
     update_simulation_result,
     update_simulation_status,
 )
+from ..auth import require_service_secret
 from ..limiter import limiter
 from ..serializers import result_to_dict, round_event_to_dict, seed_from_dict, seed_to_dict
+
+_MAX_AGENT_ROUNDS = 6_000  # ~500 agents × 12 rounds
+_ALLOWED_BASE_URL = re.compile(r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?(/.*)?$")
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +42,13 @@ class SimulateRequest(BaseModel):
     model: str = "claude-sonnet-4-6"
     agent_config: dict[str, float] | None = None
     base_url: str | None = None
+
+    @field_validator("base_url")
+    @classmethod
+    def _validate_base_url(cls, v: str | None) -> str | None:
+        if v is not None and not _ALLOWED_BASE_URL.match(v):
+            raise ValueError("base_url must be a localhost address")
+        return v
 
 
 @router.get("")
@@ -57,8 +70,13 @@ def list_simulations(user_id: str, limit: int = 50):
 
 @router.post("")
 @limiter.limit("5/minute")
-def create(request: Request, req: SimulateRequest):
+def create(request: Request, req: SimulateRequest, _auth: None = Depends(require_service_secret)):
     """Enrich the seed, store the simulation record, return simulation_id."""
+    if req.n_agents * req.n_rounds > _MAX_AGENT_ROUNDS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"n_agents × n_rounds must not exceed {_MAX_AGENT_ROUNDS}",
+        )
     try:
         adapter = registry.get(req.domain_id)
     except KeyError:

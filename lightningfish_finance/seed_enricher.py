@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import re
+
 import yfinance as yf
 
 from lightningfish_core.models import EnrichedSeed
+
+_TICKER_RE = re.compile(r"^[A-Z]{1,5}(\.[A-Z]{1,2})?$")  # e.g. AAPL, BRK.B
 
 _EVENT_KEYWORDS: dict[str, list[str]] = {
     "earnings_beat":  ["beat", "exceeded", "surpassed", "outperformed", "above estimates", "better than expected"],
@@ -45,6 +49,10 @@ def _fetch_recent_headlines(ticker: str) -> str:
 
 
 def enrich_finance_seed(ticker: str, filing_text: str, filing_date: str) -> EnrichedSeed:
+    ticker = ticker.strip().upper()
+    if not _TICKER_RE.match(ticker):
+        raise ValueError(f"Invalid ticker format: {ticker!r}")
+
     # If no context was provided, use live headlines so users don't need to paste anything.
     context = filing_text.strip() if filing_text.strip() else _fetch_recent_headlines(ticker)
     event_type = classify_event_type(context)

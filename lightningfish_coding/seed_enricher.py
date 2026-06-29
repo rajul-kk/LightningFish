@@ -7,6 +7,7 @@ import requests
 from lightningfish_core.models import EnrichedSeed
 
 _TEST_PATTERNS = re.compile(r"(test_|_test\.|spec\.|\.spec\.|__tests__)", re.IGNORECASE)
+_GITHUB_NAME_RE = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,98}[a-zA-Z0-9])?$")
 _EXTENSION_TO_LANG = {
     "py": "python", "js": "javascript", "ts": "typescript",
     "go": "go", "rs": "rust", "java": "java", "rb": "ruby",
@@ -35,6 +36,8 @@ def _parse_pr_url(pr_url: str) -> tuple[str, str, int]:
 
 def enrich_coding_seed(pr_url: str, github_token: str) -> EnrichedSeed:
     owner, repo, pr_number = _parse_pr_url(pr_url)
+    if not _GITHUB_NAME_RE.match(owner) or not _GITHUB_NAME_RE.match(repo):
+        raise ValueError(f"Invalid GitHub owner/repo name: {owner!r}/{repo!r}")
     headers = {
         "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github.v3+json",

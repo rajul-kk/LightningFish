@@ -1,4 +1,5 @@
 const PY = process.env.NEXT_PUBLIC_PYTHON_SERVICE_URL ?? "http://localhost:8000";
+const SELF = typeof window !== "undefined" ? "" : (process.env.NEXT_PUBLIC_SELF_URL ?? "http://localhost:3000");
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -18,7 +19,8 @@ export async function createSimulation(payload: {
   agent_config: Record<string, number> | null;
   base_url?: string | null;
 }): Promise<{ simulation_id: string }> {
-  const res = await fetch(`${PY}/simulate`, {
+  // Route through the Next.js API handler so SERVICE_SECRET stays server-side.
+  const res = await fetch(`${SELF}/api/simulate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
