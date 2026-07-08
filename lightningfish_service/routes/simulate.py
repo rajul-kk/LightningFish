@@ -82,7 +82,13 @@ def create(request: Request, req: SimulateRequest, _auth: None = Depends(require
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Unknown domain: {req.domain_id}")
 
-    seed = adapter.enrich_seed(req.raw_input)
+    try:
+        seed = adapter.enrich_seed(req.raw_input)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Seed enrichment failed for domain %s: %s", req.domain_id, exc)
+        raise HTTPException(status_code=502, detail=f"Seed enrichment failed: {exc}")
     seed_dict = seed_to_dict(seed)
     sim_id = str(uuid.uuid4())
     create_simulation(
@@ -133,9 +139,13 @@ def stream(simulation_id: str):
     if sim["status"] == "complete":
         raise HTTPException(status_code=409, detail="Simulation already complete")
 
+    if sim["status"] == "running":
+        raise HTTPException(status_code=409, detail="Simulation already running")
+
     domain_id = sim["domain_id"]
-    adapter = registry.get(domain_id)
-    if adapter is None:
+    try:
+        adapter = registry.get(domain_id)
+    except KeyError:
         raise HTTPException(status_code=500, detail=f"Domain adapter missing: {domain_id}")
 
     seed_dict = sim["seed_json"]

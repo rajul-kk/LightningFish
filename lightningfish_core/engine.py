@@ -99,14 +99,8 @@ class SimulationEngine:
 
             # — T2: batched opinion update from feed —
             if t2:
-                viral = store.viral_post(round_num)
                 t2_systems = [
-                    self.adapter.post_system_prompt(
-                        seed, agent,
-                        store.sample_for_feed(agent, round_num),
-                        viral,
-                    )
-                    + f"\n\n{_T2_USER_MSG}"
+                    self.adapter.agent_system_prompt(seed, agent)
                     for agent in t2
                 ]
                 t2_opinions, t2_cost = self.provider.batch_opinions_from_feed(t2_systems, self.model)

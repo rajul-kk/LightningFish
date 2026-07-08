@@ -1,5 +1,5 @@
 "use client";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSimulationStream } from "@/lib/use-sse";
 import { OpinionChart } from "@/components/OpinionChart";
@@ -17,6 +17,8 @@ export default function LivePage() {
   // In this route, [domain] holds the simulation UUID (e.g. /simulate/{uuid}/live)
   const { domain: simulationId } = useParams<{ domain: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const totalRounds = Number(searchParams.get("rounds") ?? 12);
   const redirectedRef = useRef(false);
   const [postFeed, setPostFeed] = useState<PostWithRound[]>([]);
 
@@ -40,8 +42,6 @@ export default function LivePage() {
   const trajectory = rounds.map((r) => r.mean_opinion);
   const latest = rounds[rounds.length - 1];
   const distribution = latest?.opinion_distribution ?? [];
-
-  const totalRounds = 12;
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">

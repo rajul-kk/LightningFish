@@ -145,7 +145,7 @@ export default function SimulatePage() {
         agent_config,
         base_url: useLocalModel ? localBaseUrl : null,
       });
-      router.push(`/simulate/${simulation_id}/live`);
+      router.push(`/simulate/${simulation_id}/live?rounds=${nRounds}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
       setLoading(false);
