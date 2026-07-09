@@ -110,7 +110,6 @@ class SimulationEngine:
 
             # — T3: herding math (no LLM) —
             cluster_means = _cluster_means(agents)
-            recency_pull = trajectory[-1] if trajectory else 0.0
             for agent in t3:
                 if isinstance(agent, RuleBasedAgent):
                     agent.current_opinion = agent.compute_opinion(seed)
