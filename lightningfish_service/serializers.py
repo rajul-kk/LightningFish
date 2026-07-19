@@ -10,7 +10,6 @@ from lightningfish_core.models import (
     ScrapedDocument,
     SimulationResult,
 )
-from lightningfish_core.social import SocialMetrics
 
 
 def seed_to_dict(seed: EnrichedSeed) -> dict:
@@ -62,6 +61,7 @@ def round_event_to_dict(event: RoundEvent) -> dict:
         d["cascade_detected"] = m.cascade_detected
         d["cascade_trigger_archetype"] = m.cascade_trigger_archetype
         d["settled_fraction"] = m.settled_fraction
+        d["parse_success_rate"] = m.parse_success_rate
     d["sample_posts"] = [
         {
             "agent_id": p.agent_id,

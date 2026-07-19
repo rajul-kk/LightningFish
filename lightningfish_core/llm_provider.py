@@ -44,6 +44,7 @@ def _parse_post_response(
     confidence = 0.5
     blurb = raw.strip()[:200]
     opinion_after = opinion_before
+    parse_ok = True
 
     try:
         lines = [ln.strip() for ln in raw.strip().splitlines()]
@@ -59,7 +60,10 @@ def _parse_post_response(
                 blurb = line.split(":", 1)[1].strip()
         opinion_after = max(-1.0, min(1.0, float(lines[-1])))
     except (ValueError, IndexError):
+        # The trailing opinion float is the one field we cannot fake; if it is
+        # missing or malformed the response did not follow the format.
         opinion_after = opinion_before
+        parse_ok = False
 
     post = SocialPost(
         agent_id=agent_id,
@@ -71,6 +75,7 @@ def _parse_post_response(
         blurb=blurb,
         opinion_before=opinion_before,
         opinion_after=opinion_after,
+        parse_ok=parse_ok,
     )
     return post, opinion_after
 

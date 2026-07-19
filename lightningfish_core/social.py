@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from .models import AgentPersona
 
@@ -17,6 +17,7 @@ class SocialPost:
     blurb: str            # one sentence, ≤60 words
     opinion_before: float
     opinion_after: float
+    parse_ok: bool = True  # False if the structured LLM output could not be parsed
 
 
 class PostStore:
@@ -60,6 +61,7 @@ class SocialMetrics:
     argument_tags_this_round: list[str]
     new_argument_tags: list[str]       # tags appearing for the first time
     argument_diversity_score: float    # unique tags seen / taxonomy size
-    cascade_detected: bool             # |mean_t - mean_{t-1}| > 0.15
+    cascade_detected: bool             # movement exceeds z-score threshold vs history
     cascade_trigger_archetype: str | None
     settled_fraction: float            # fraction of agents no longer updating
+    parse_success_rate: float = 1.0    # fraction of T1 posts whose format parsed cleanly

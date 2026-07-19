@@ -56,3 +56,35 @@ class DomainAdapter(ABC):
             <float opinion -1.0 to 1.0>
         """
         ...
+
+    def reactor_system_prompt(
+        self,
+        seed: EnrichedSeed,
+        persona: AgentPersona,
+        feed: "list[SocialPost]",
+        viral: "SocialPost | None",
+    ) -> str:
+        """
+        System prompt for T2 (reactor) agents: the base agent prompt plus the
+        social feed the agent has seen, asking for a single updated float.
+
+        T2 agents do not author structured posts, but — unlike a bare opinion
+        re-evaluation — they must actually see what the crowd is saying. Domains
+        may override this; the default appends the feed to ``agent_system_prompt``.
+        """
+        base = self.agent_system_prompt(seed, persona)
+        if not feed and viral is None:
+            return base
+        lines = [f"  [{p.archetype}] [{p.argument_tag}] {p.blurb}" for p in feed]
+        feed_block = ""
+        if lines:
+            feed_block += "Recent posts you have seen:\n" + "\n".join(lines) + "\n\n"
+        if viral is not None:
+            feed_block += (
+                f"Trending post (high confidence): [{viral.archetype}] "
+                f"[{viral.argument_tag}] {viral.blurb}\n\n"
+            )
+        return (
+            f"{base}\n\n{feed_block}"
+            "Reconsider your opinion in light of these posts. Output ONLY the number."
+        )

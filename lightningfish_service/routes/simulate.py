@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-import uuid
-
 import re
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -13,6 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 from lightningfish_core.engine import SimulationEngine
 from lightningfish_core.registry import registry
 
+from ..auth import require_service_secret
 from ..db import (
     create_simulation,
     get_simulation,
@@ -21,7 +21,6 @@ from ..db import (
     update_simulation_result,
     update_simulation_status,
 )
-from ..auth import require_service_secret
 from ..limiter import limiter
 from ..serializers import result_to_dict, round_event_to_dict, seed_from_dict, seed_to_dict
 

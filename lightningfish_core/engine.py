@@ -6,15 +6,27 @@ from collections import Counter
 from .adapter import DomainAdapter
 from .llm_provider import LLMProvider, make_provider
 from .models import AgentPersona, EnrichedSeed, RoundEvent, SimulationResult
+from .resistance import blend_opinion
 from .rule_agent import RuleBasedAgent
 from .social import PostStore, SocialMetrics
 from .tier_router import SettledTracker, TierRouter
 
-_T2_USER_MSG = (
-    "Based on the posts you have read and your own analysis, "
-    "output your updated opinion as a single float between -1.0 and 1.0. "
-    "Output ONLY the number, nothing else."
-)
+_T2_USER_MSG = "Output ONLY the number, nothing else."
+
+# Fraction of the T3 herding target drawn from the influence-weighted global
+# crowd vs. the agent's own archetype cluster. In-group dominates so echo
+# chambers (and bifurcation) can persist, while cross-group contagion still
+# exists — the previous code pulled agents only toward their own cluster, so
+# archetypes never influenced each other.
+_GLOBAL_HERD_WEIGHT = 0.3
+
+# Rounds of movement history required before switching cascade detection from a
+# fixed threshold to a z-score against the observed movement distribution.
+_CASCADE_MIN_HISTORY = 3
+_CASCADE_FALLBACK_THRESHOLD = 0.15
+# Absolute floor so a statistically-significant but trivially small blip in mean
+# opinion (e.g. 0.005 on a [-1, 1] scale) is not reported as a cascade.
+_CASCADE_MIN_MOVE = 0.03
 
 
 def _cluster_means(agents: list[AgentPersona]) -> dict[str, float]:
@@ -22,6 +34,13 @@ def _cluster_means(agents: list[AgentPersona]) -> dict[str, float]:
     for a in agents:
         by_arch.setdefault(a.archetype, []).append(a.current_opinion)
     return {arch: statistics.mean(ops) for arch, ops in by_arch.items()}
+
+
+def _influence_weighted_mean(agents: list[AgentPersona]) -> float:
+    """Global opinion signal, weighted so high-influence agents pull harder."""
+    num = sum(a.influence_weight * a.current_opinion for a in agents)
+    den = sum(a.influence_weight for a in agents)
+    return num / den if den > 1e-9 else 0.0
 
 
 class SimulationEngine:
@@ -58,10 +77,11 @@ class SimulationEngine:
         tracker = SettledTracker()
         settled_ids: set[str] = set()
         taxonomy = self.adapter.argument_taxonomy()
+        taxonomy_set = set(taxonomy)
         all_seen_tags: set[str] = set()
         argument_timeline: dict[str, int] = {}
-        initial_csad: float | None = None
         prev_herding_index = 0.0
+        movement_history: list[float] = []
 
         trajectory: list[float] = []
         herding_curve: list[float] = []
@@ -75,12 +95,16 @@ class SimulationEngine:
             round_cost = 0.0
             round_posts = []
 
+            # Crowd pressure this round: influence-weighted global mean, snapshotted
+            # before any updates so it reflects the state agents are reacting to.
+            crowd_signal = _influence_weighted_mean(agents)
+
             # — T1: generate structured post + updated opinion —
             for agent in t1:
                 feed = store.sample_for_feed(agent, round_num)
                 viral = store.viral_post(round_num)
                 system = self.adapter.post_system_prompt(seed, agent, feed, viral)
-                post, opinion_after, cost = self.provider.generate_post(
+                post, llm_opinion, cost = self.provider.generate_post(
                     system=system,
                     model=self.model,
                     agent_id=agent.unique_id,
@@ -88,8 +112,14 @@ class SimulationEngine:
                     round_number=round_num,
                     opinion_before=agent.current_opinion,
                 )
+                # The LLM opinion is a fresh signal, not the final opinion: blend it
+                # with the prior through the persona's resistance/recency so those
+                # parameters (and the resistance override) actually govern movement.
+                override_fn = agent.metadata.get("resistance_override_fn")
+                blended = blend_opinion(agent, llm_opinion, crowd_signal, override_fn)
                 post.round_number = round_num
-                agent.current_opinion = opinion_after
+                post.opinion_after = blended
+                agent.current_opinion = blended
                 store.add(post)
                 round_posts.append(post)
                 round_cost += cost
@@ -97,29 +127,39 @@ class SimulationEngine:
             total_t1_calls += len(t1)
             total_cost_usd += round_cost
 
-            # — T2: batched opinion update from feed —
-            if t2:
-                t2_systems = [
-                    self.adapter.agent_system_prompt(seed, agent)
-                    for agent in t2
-                ]
-                t2_opinions, t2_cost = self.provider.batch_opinions_from_feed(t2_systems, self.model)
-                total_cost_usd += t2_cost
-                for agent, opinion in zip(t2, t2_opinions):
-                    agent.current_opinion = opinion
+            # — T2: reactors re-evaluate after reading the feed (one call each) —
+            for agent in t2:
+                feed = store.sample_for_feed(agent, round_num)
+                viral = store.viral_post(round_num)
+                system = self.adapter.reactor_system_prompt(seed, agent, feed, viral)
+                llm_opinion, cost = self.provider.get_opinion(system, _T2_USER_MSG, self.model)
+                total_cost_usd += cost
+                override_fn = agent.metadata.get("resistance_override_fn")
+                agent.current_opinion = blend_opinion(agent, llm_opinion, crowd_signal, override_fn)
 
             # — T3: herding math (no LLM) —
+            # Target blends the influence-weighted global crowd with the agent's own
+            # archetype cluster, so groups pull on each other instead of drifting in
+            # isolation. contrarian_tendency damps (or, past 1.0, would invert) the pull.
             cluster_means = _cluster_means(agents)
             for agent in t3:
                 if isinstance(agent, RuleBasedAgent):
                     agent.current_opinion = agent.compute_opinion(seed)
                 else:
                     cluster_mean = cluster_means.get(agent.archetype, 0.0)
+                    target = (
+                        _GLOBAL_HERD_WEIGHT * crowd_signal
+                        + (1.0 - _GLOBAL_HERD_WEIGHT) * cluster_mean
+                    )
                     λ = agent.herding_coefficient
-                    effective_λ = λ * (1.0 - agent.contrarian_tendency)
+                    # Conformists (λ ≥ 0) herd less the more contrarian they are.
+                    # Diverging agents (λ < 0) are left intact — applying the same
+                    # damping would shrink their divergence toward zero and remove
+                    # the force that produces bifurcation.
+                    effective_λ = λ * (1.0 - agent.contrarian_tendency) if λ >= 0 else λ
                     raw = (
                         (1.0 - abs(effective_λ)) * agent.current_opinion
-                        + effective_λ * cluster_mean
+                        + effective_λ * target
                     )
                     agent.current_opinion = max(-1.0, min(1.0, raw))
 
@@ -132,26 +172,45 @@ class SimulationEngine:
             stddev_op = statistics.stdev(opinions) if len(opinions) > 1 else 0.0
             csad = statistics.mean(abs(o - mean_op) for o in opinions)
 
-            if initial_csad is None:
-                initial_csad = csad if csad > 1e-9 else 1e-9
-            herding_index = 1.0 - csad / initial_csad
+            # Consensus level normalized against the max attainable dispersion for
+            # opinions in [-1, 1] (CSAD_max = 1.0, an even split at the poles).
+            # 1 = everyone agrees, 0 = maximally split. No arbitrary round-1 baseline.
+            herding_index = 1.0 - csad
             herding_delta = herding_index - prev_herding_index
             prev_herding_index = herding_index
 
-            # — Argument diversity metrics —
-            round_tags = list({p.argument_tag for p in round_posts})
-            new_tags = [t for t in round_tags if t not in all_seen_tags]
+            # — Argument diversity metrics (validated against the taxonomy) —
+            round_tags = list({
+                (p.argument_tag if p.argument_tag in taxonomy_set else "other")
+                for p in round_posts
+            })
+            valid_tags = {t for t in round_tags if t in taxonomy_set}
+            new_tags = [t for t in valid_tags if t not in all_seen_tags]
             for tag in new_tags:
                 argument_timeline[tag] = round_num
-            all_seen_tags.update(round_tags)
-            ads = len(all_seen_tags) / max(len(taxonomy), 1)
+            all_seen_tags.update(valid_tags)
+            ads = len(all_seen_tags) / max(len(taxonomy), 1)  # bounded in [0, 1]
 
-            # — Cascade detection —
+            # — Cascade detection: z-score vs the movement distribution, once we
+            #   have enough history; fixed threshold for the first few rounds. —
             prev_mean = trajectory[-1] if trajectory else mean_op
-            cascade = abs(mean_op - prev_mean) > 0.15
+            movement = abs(mean_op - prev_mean)
+            if len(movement_history) >= _CASCADE_MIN_HISTORY:
+                mu = statistics.mean(movement_history)
+                sd = statistics.stdev(movement_history)
+                cascade = sd > 1e-9 and movement > mu + 2.0 * sd and movement > _CASCADE_MIN_MOVE
+            else:
+                cascade = movement > _CASCADE_FALLBACK_THRESHOLD
+            movement_history.append(movement)
             trigger = None
             if cascade and round_posts:
                 trigger = Counter(p.archetype for p in round_posts).most_common(1)[0][0]
+
+            # — Structured-output health: fraction of T1 posts that parsed cleanly —
+            parse_success_rate = (
+                sum(1 for p in round_posts if p.parse_ok) / len(round_posts)
+                if round_posts else 1.0
+            )
 
             social_metrics = SocialMetrics(
                 herding_index=herding_index,
@@ -162,6 +221,7 @@ class SimulationEngine:
                 cascade_detected=cascade,
                 cascade_trigger_archetype=trigger,
                 settled_fraction=len(settled_ids) / max(len(agents), 1),
+                parse_success_rate=parse_success_rate,
             )
 
             trajectory.append(mean_op)
