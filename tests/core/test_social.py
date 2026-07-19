@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from lightningfish_core.models import AgentPersona
 from lightningfish_core.social import PostStore, SocialMetrics, SocialPost
 

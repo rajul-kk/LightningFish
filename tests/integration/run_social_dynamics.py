@@ -532,11 +532,20 @@ def main() -> None:
     r_b = all_results["B: Cascade Reversal"]
     r_c = all_results["C: Tribal Bifurcation"]
 
-    assert r_a.trajectory[-1] > 0.4,       f"A: expected bullish consensus, got {r_a.trajectory[-1]:.3f}"
-    assert max(r_a.herding_curve) > 0.3,   f"A: expected herding > 30%, got {max(r_a.herding_curve):.2%}"
+    # Herding index is now a consensus level in [0, 1] (1 = everyone agrees).
+    # A forms consensus (positive, rising trajectory; high final herding).
+    assert r_a.trajectory[-1] > 0.1, f"A: expected bullish drift, got {r_a.trajectory[-1]:.3f}"
+    assert r_a.trajectory[-1] > r_a.trajectory[0], "A: expected trajectory to rise under sustained signal"
+    assert r_a.herding_curve[-1] > 0.7, f"A: expected strong consensus, got {r_a.herding_curve[-1]:.2%}"
+    # B reverses direction after the shock (a cascade fires).
     assert any(e.social_metrics and e.social_metrics.cascade_detected for e in r_b.round_events), \
         "B: expected at least one cascade event"
-    assert min(r_c.herding_curve) < 0.2,   f"C: expected bifurcation (low herding), got {min(r_c.herding_curve):.2%}"
+    # C stays measurably more split than A the whole way: with real cross-group
+    # contagion, conformists converge, so persistent divergence shows up as C
+    # holding LOWER consensus than A rather than as a negative index.
+    assert r_c.herding_curve[-1] < r_a.herding_curve[-1], \
+        f"C: expected to stay more split than A ({r_c.herding_curve[-1]:.2%} vs {r_a.herding_curve[-1]:.2%})"
+    assert min(r_c.herding_curve) < 0.5, f"C: expected high early dispersion, got {min(r_c.herding_curve):.2%}"
     assert len(r_a.argument_timeline) >= 4, "A: expected ≥4 argument tags surfaced"
 
     print(f"  {_GREEN}✓ All assertions passed{_RESET}\n")

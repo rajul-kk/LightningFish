@@ -119,6 +119,29 @@ def test_herding_index_is_float():
         assert -5.0 < h < 5.0
 
 
+def test_herding_index_is_bounded_zero_to_one():
+    # Re-baselined against max dispersion: 1 = consensus, 0 = maximally split.
+    engine = _make_engine()
+    events = list(engine.run_streaming(_seed(), _agents(20), n_rounds=3))
+    for event in events:
+        h = event.social_metrics.herding_index
+        assert 0.0 <= h <= 1.0
+
+
+def test_ads_never_exceeds_one():
+    engine = _make_engine()
+    events = list(engine.run_streaming(_seed(), _agents(20), n_rounds=3))
+    for event in events:
+        assert 0.0 <= event.social_metrics.argument_diversity_score <= 1.0
+
+
+def test_parse_success_rate_present():
+    engine = _make_engine()
+    events = list(engine.run_streaming(_seed(), _agents(20), n_rounds=2))
+    for event in events:
+        assert 0.0 <= event.social_metrics.parse_success_rate <= 1.0
+
+
 def test_t1_plus_t2_plus_t3_totals_all_agents():
     engine = _make_engine()
     events = list(engine.run_streaming(_seed(), _agents(20), n_rounds=2))
@@ -162,7 +185,7 @@ def test_serializer_includes_social_fields():
 
 
 def test_serializer_result_includes_herding_curve():
-    from lightningfish_core.models import EnrichedSeed, SimulationResult
+    from lightningfish_core.models import EnrichedSeed
     from lightningfish_service.serializers import result_to_dict
 
     seed = EnrichedSeed("finance", {}, "test", [], "earnings", {})
