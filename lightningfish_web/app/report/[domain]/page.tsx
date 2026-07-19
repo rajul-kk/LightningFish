@@ -110,7 +110,7 @@ export default async function ReportPage({
             Herding index by round
           </h2>
           <p className="text-xs text-neutral-400 mb-4">
-            0% = as diverse as round 1 &middot; 100% = full consensus &middot; negative = bifurcation
+            Consensus level &middot; 100% = everyone agrees &middot; 0% = maximally split &middot; a falling bar means opinions are diverging
           </p>
           <div className="flex items-end gap-1 h-16">
             {result.herding_curve.map((h, i) => {

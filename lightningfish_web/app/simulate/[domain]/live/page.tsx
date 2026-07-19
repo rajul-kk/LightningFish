@@ -114,11 +114,13 @@ export default function LivePage() {
                 {(latest.herding_index * 100).toFixed(0)}%
               </div>
               <div className="text-xs text-neutral-400">
-                {latest.herding_index > 0.4
-                  ? "Strong consensus forming"
-                  : latest.herding_index < 0
+                {(latest.herding_delta ?? 0) < -0.02
                   ? "Bifurcation — opinions diverging"
-                  : "Moderate diversity"}
+                  : latest.herding_index > 0.7
+                  ? "Strong consensus forming"
+                  : latest.herding_index > 0.5
+                  ? "Moderate consensus"
+                  : "Highly split"}
               </div>
             </div>
             {latest.cascade_detected && (
