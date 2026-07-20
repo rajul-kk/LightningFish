@@ -97,6 +97,19 @@ class CodingDomainAdapter(DomainAdapter):
             f"-0.7"
         )
 
+    def naive_prediction(self, seed: EnrichedSeed) -> float:
+        # Content-free baseline: PRs that include tests (and, if known, pass CI)
+        # tend to merge. This is what the simulation must beat.
+        meta = seed.metadata
+        score = 0.5 if meta.get("is_test_included") else -0.5
+        ci = meta.get("ci_pass_rate")
+        if ci is not None:
+            score += 0.5 if ci >= 0.5 else -0.5
+        return max(-1.0, min(1.0, score))
+
+    def truth_direction(self, truth: GroundTruthRecord) -> int:
+        return 1 if truth.data.get("merged") else -1
+
     def get_ground_truth(self, seed: EnrichedSeed) -> GroundTruthRecord | None:
         meta = seed.metadata
         if not all(k in meta for k in ("owner", "repo", "pr_number")):

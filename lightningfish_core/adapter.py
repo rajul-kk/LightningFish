@@ -33,6 +33,21 @@ class DomainAdapter(ABC):
     @abstractmethod
     def score(self, result: SimulationResult, truth: GroundTruthRecord) -> BacktestResult: ...
 
+    def naive_prediction(self, seed: EnrichedSeed) -> float:
+        """
+        A trivial, LLM-free directional prediction for the backtest baseline
+        (return value in [-1, 1]; sign is what matters). The simulation has to
+        beat this to justify its cost. Default: no opinion. Domains override.
+        """
+        return 0.0
+
+    def truth_direction(self, truth: GroundTruthRecord) -> int:
+        """
+        The actual outcome's direction: +1, -1, or 0 (no directional signal).
+        Events returning 0 are skipped by the backtest. Domains override.
+        """
+        return 0
+
     @abstractmethod
     def argument_taxonomy(self) -> list[str]:
         """Return the ordered list of argument tags for this domain (exactly 8 items)."""

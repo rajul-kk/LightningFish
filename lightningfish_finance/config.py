@@ -10,6 +10,17 @@ _FINANCE_TAXONOMY = [
     "valuation", "momentum", "macro", "quality",
     "technical", "sentiment", "liquidity", "catalyst",
 ]
+
+# Keyword lists for the naive-baseline sentiment predictor (backtest).
+_POSITIVE_WORDS = [
+    "beat", "beats", "exceeded", "surpassed", "outperformed", "surge", "surges",
+    "record", "growth", "upgrade", "rally", "gain", "gains", "strong", "bullish",
+]
+_NEGATIVE_WORDS = [
+    "miss", "missed", "below", "fell", "disappointing", "scandal", "fraud",
+    "investigation", "delisting", "resigned", "loss", "losses", "downgrade",
+    "crash", "plunge", "weak", "bearish", "collapse",
+]
 from lightningfish_core.models import (
     AgentPersona,
     BacktestResult,
@@ -91,6 +102,19 @@ class FinanceDomainAdapter(DomainAdapter):
             f"BLURB: FCF yield of 6% at current multiples signals undervaluation relative to growth.\n"
             f"0.45"
         )
+
+    def naive_prediction(self, seed: EnrichedSeed) -> float:
+        # Content-free baseline: net sentiment of positive vs negative keywords
+        # in the event summary. This is what the simulation must beat.
+        text = seed.summary.lower()
+        pos = sum(1 for w in _POSITIVE_WORDS if w in text)
+        neg = sum(1 for w in _NEGATIVE_WORDS if w in text)
+        total = pos + neg
+        return (pos - neg) / total if total else 0.0
+
+    def truth_direction(self, truth: GroundTruthRecord) -> int:
+        pct = truth.data.get("price_change_pct", 0.0)
+        return 1 if pct > 0 else (-1 if pct < 0 else 0)
 
     def get_ground_truth(self, seed: EnrichedSeed) -> GroundTruthRecord | None:
         filing_date = seed.metadata.get("filing_date")
