@@ -8,7 +8,7 @@ from .llm_provider import LLMProvider, make_provider
 from .models import AgentPersona, EnrichedSeed, RoundEvent, SimulationResult
 from .resistance import blend_opinion
 from .rule_agent import RuleBasedAgent
-from .social import PostStore, SocialMetrics
+from .social import PostStore, SocialMetrics, SocialPost
 from .tier_router import SettledTracker, TierRouter
 
 _T2_USER_MSG = "Output ONLY the number, nothing else."
@@ -19,6 +19,11 @@ _T2_USER_MSG = "Output ONLY the number, nothing else."
 # exists — the previous code pulled agents only toward their own cluster, so
 # archetypes never influenced each other.
 _GLOBAL_HERD_WEIGHT = 0.3
+
+# How many times to re-request a T1 post whose structured format failed to parse
+# before accepting the fallback opinion (small models drop the format ~half the
+# time; a silent fallback reads as false stability).
+_MAX_POST_RETRIES = 1
 
 # Rounds of movement history required before switching cascade detection from a
 # fixed threshold to a z-score against the observed movement distribution.
@@ -93,7 +98,7 @@ class SimulationEngine:
             tiers = self.router.route(agents, settled_ids, round_num)
             t1, t2, t3 = tiers["t1"], tiers["t2"], tiers["t3"]
             round_cost = 0.0
-            round_posts = []
+            round_posts: list[SocialPost] = []
 
             # Crowd pressure this round: influence-weighted global mean, snapshotted
             # before any updates so it reflects the state agents are reacting to.
@@ -104,14 +109,30 @@ class SimulationEngine:
                 feed = store.sample_for_feed(agent, round_num)
                 viral = store.viral_post(round_num)
                 system = self.adapter.post_system_prompt(seed, agent, feed, viral)
-                post, llm_opinion, cost = self.provider.generate_post(
-                    system=system,
-                    model=self.model,
-                    agent_id=agent.unique_id,
-                    archetype=agent.archetype,
-                    round_number=round_num,
-                    opinion_before=agent.current_opinion,
-                )
+
+                def _gen(a=agent):
+                    return self.provider.generate_post(
+                        system=system,
+                        model=self.model,
+                        agent_id=a.unique_id,
+                        archetype=a.archetype,
+                        round_number=round_num,
+                        opinion_before=a.current_opinion,
+                    )
+
+                # Retry malformed structured output before accepting the fallback:
+                # a dropped post is a silent "no change" that biases the round
+                # toward false stability.
+                post, llm_opinion, cost = _gen()
+                round_cost += cost
+                total_t1_calls += 1
+                attempts = 0
+                while not post.parse_ok and attempts < _MAX_POST_RETRIES:
+                    attempts += 1
+                    post, llm_opinion, cost = _gen()
+                    round_cost += cost
+                    total_t1_calls += 1
+
                 # The LLM opinion is a fresh signal, not the final opinion: blend it
                 # with the prior through the persona's resistance/recency so those
                 # parameters (and the resistance override) actually govern movement.
@@ -122,9 +143,7 @@ class SimulationEngine:
                 agent.current_opinion = blended
                 store.add(post)
                 round_posts.append(post)
-                round_cost += cost
 
-            total_t1_calls += len(t1)
             total_cost_usd += round_cost
 
             # — T2: reactors re-evaluate after reading the feed (one call each) —

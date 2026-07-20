@@ -142,6 +142,40 @@ def test_parse_success_rate_present():
         assert 0.0 <= event.social_metrics.parse_success_rate <= 1.0
 
 
+def test_failed_post_is_retried_once():
+    from lightningfish_core.engine import SimulationEngine
+
+    engine = SimulationEngine(_StubAdapter())
+
+    bad = SocialPost(
+        agent_id="x", archetype="Analyst", round_number=1,
+        stance="neutral", argument_tag="other", confidence=0.5,
+        blurb="garbled", opinion_before=0.1, opinion_after=0.1, parse_ok=False,
+    )
+    good = SocialPost(
+        agent_id="x", archetype="Analyst", round_number=1,
+        stance="bullish", argument_tag="a", confidence=0.8,
+        blurb="Clean parse.", opinion_before=0.1, opinion_after=0.4, parse_ok=True,
+    )
+
+    calls = {"n": 0}
+
+    def fake_generate_post(**kwargs):
+        calls["n"] += 1
+        # First call for each agent fails, the retry succeeds.
+        post = bad if calls["n"] % 2 == 1 else good
+        return post, post.opinion_after, 0.001
+
+    mock_provider = MagicMock()
+    mock_provider.generate_post.side_effect = fake_generate_post
+    mock_provider.get_opinion.return_value = (0.3, 0.001)
+    engine.provider = mock_provider
+
+    events = list(engine.run_streaming(_seed(), _agents(20), n_rounds=1))
+    # Every retried post parsed cleanly on the second attempt.
+    assert events[0].social_metrics.parse_success_rate == 1.0
+
+
 def test_t1_plus_t2_plus_t3_totals_all_agents():
     engine = _make_engine()
     events = list(engine.run_streaming(_seed(), _agents(20), n_rounds=2))
