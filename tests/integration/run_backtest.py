@@ -24,6 +24,14 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 from lightningfish_core.backtest import BacktestReport, run_backtest
 from lightningfish_core.engine import SimulationEngine
 
+
+def _sim_size(default_agents: int, default_rounds: int) -> tuple[int, int]:
+    """Agent/round counts, overridable via env for cheap local runs."""
+    return (
+        int(os.environ.get("LIGHTNINGFISH_N_AGENTS", default_agents)),
+        int(os.environ.get("LIGHTNINGFISH_N_ROUNDS", default_rounds)),
+    )
+
 # A tiny seed list for the finance path. Point-in-time headline text is supplied
 # so the naive baseline is not leaking current news. Extend freely.
 _FINANCE_EVENTS = [
@@ -56,8 +64,8 @@ def _run_coding(args: list[str]) -> None:
     limit = int(args[2]) if len(args) > 2 else 20
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
-        print("Error: GITHUB_TOKEN not set.")
-        sys.exit(1)
+        print("Note: GITHUB_TOKEN not set — using unauthenticated GitHub API "
+              "(60 req/hr; keep limit small, ~8 PRs).")
 
     print(f"Pulling up to {limit} closed PRs from {owner}/{repo}...")
     events = pull_pr_events(owner, repo, token, limit=limit)
@@ -66,7 +74,8 @@ def _run_coding(args: list[str]) -> None:
     adapter = CodingDomainAdapter()
     model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
     engine = SimulationEngine(adapter, model=model)
-    report = run_backtest(adapter, engine, events, n_agents=60, n_rounds=6)
+    n_agents, n_rounds = _sim_size(60, 6)
+    report = run_backtest(adapter, engine, events, n_agents=n_agents, n_rounds=n_rounds)
     _print_report(f"coding {owner}/{repo}", report)
 
 
@@ -84,7 +93,8 @@ def _run_finance() -> None:
     adapter = FinanceDomainAdapter()
     model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
     engine = SimulationEngine(adapter, model=model)
-    report = run_backtest(adapter, engine, events, n_agents=100, n_rounds=8)
+    n_agents, n_rounds = _sim_size(100, 8)
+    report = run_backtest(adapter, engine, events, n_agents=n_agents, n_rounds=n_rounds)
     _print_report("finance", report)
 
 

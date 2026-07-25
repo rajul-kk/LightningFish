@@ -4,12 +4,13 @@ import requests
 
 from lightningfish_core.models import GroundTruthRecord
 
+from .seed_enricher import gh_headers
 
-def fetch_ci_pass_rate(owner: str, repo: str, sha: str, token: str) -> float | None:
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+
+def fetch_ci_pass_rate(owner: str, repo: str, sha: str, token: str | None) -> float | None:
     resp = requests.get(
         f"https://api.github.com/repos/{owner}/{repo}/commits/{sha}/check-runs",
-        headers=headers,
+        headers=gh_headers(token),
     )
     runs = resp.json().get("check_runs", [])
     if not runs:
@@ -19,9 +20,9 @@ def fetch_ci_pass_rate(owner: str, repo: str, sha: str, token: str) -> float | N
 
 
 def get_coding_ground_truth(
-    owner: str, repo: str, pr_number: int, token: str
+    owner: str, repo: str, pr_number: int, token: str | None
 ) -> GroundTruthRecord:
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+    headers = gh_headers(token)
     base = f"https://api.github.com/repos/{owner}/{repo}"
 
     pr = requests.get(f"{base}/pulls/{pr_number}", headers=headers).json()

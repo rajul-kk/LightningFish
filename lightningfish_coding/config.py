@@ -29,7 +29,7 @@ class CodingDomainAdapter(DomainAdapter):
     def enrich_seed(self, raw_input: dict) -> EnrichedSeed:
         return enrich_coding_seed(
             raw_input["pr_url"],
-            github_token=os.environ["GITHUB_TOKEN"],
+            github_token=os.environ.get("GITHUB_TOKEN"),
         )
 
     def build_personas(
@@ -116,7 +116,7 @@ class CodingDomainAdapter(DomainAdapter):
             return None
         return get_coding_ground_truth(
             meta["owner"], meta["repo"], meta["pr_number"],
-            token=os.environ["GITHUB_TOKEN"],
+            token=os.environ.get("GITHUB_TOKEN"),
         )
 
     def score(self, result: SimulationResult, truth: GroundTruthRecord) -> BacktestResult:

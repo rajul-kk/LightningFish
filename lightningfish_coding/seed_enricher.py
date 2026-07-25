@@ -34,14 +34,20 @@ def _parse_pr_url(pr_url: str) -> tuple[str, str, int]:
     return m.group(1), m.group(2), int(m.group(3))
 
 
-def enrich_coding_seed(pr_url: str, github_token: str) -> EnrichedSeed:
+def gh_headers(token: str | None) -> dict[str, str]:
+    """GitHub API headers; auth is added only when a token is supplied so
+    public repos work unauthenticated (at the lower 60-req/hr rate limit)."""
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def enrich_coding_seed(pr_url: str, github_token: str | None) -> EnrichedSeed:
     owner, repo, pr_number = _parse_pr_url(pr_url)
     if not _GITHUB_NAME_RE.match(owner) or not _GITHUB_NAME_RE.match(repo):
         raise ValueError(f"Invalid GitHub owner/repo name: {owner!r}/{repo!r}")
-    headers = {
-        "Authorization": f"Bearer {github_token}",
-        "Accept": "application/vnd.github.v3+json",
-    }
+    headers = gh_headers(github_token)
     base = f"https://api.github.com/repos/{owner}/{repo}"
 
     pr = requests.get(f"{base}/pulls/{pr_number}", headers=headers).json()
