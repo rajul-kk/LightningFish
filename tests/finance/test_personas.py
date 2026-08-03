@@ -1,5 +1,15 @@
+import statistics
+
 from lightningfish_core.models import AgentPersona
 from lightningfish_finance.personas import build_finance_personas, short_seller_resistance
+
+
+def test_within_archetype_parameters_are_jittered():
+    # Agents of the same archetype should no longer be parametrically identical.
+    personas = build_finance_personas(500)
+    retail = [p.opinion_resistance for p in personas if p.archetype == "RetailFOMO"]
+    assert len(retail) > 10
+    assert statistics.stdev(retail) > 0.01
 
 
 def test_persona_count_close_to_n():

@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 import uuid
 
+from lightningfish_core.jitter import jitter
 from lightningfish_core.models import AgentPersona
 
 
@@ -57,12 +58,12 @@ def build_finance_personas(
             personas.append(AgentPersona(
                 unique_id=str(uuid.uuid4()),
                 archetype=archetype,
-                opinion_resistance=cfg["opinion_resistance"],
-                recency_bias=cfg["recency_bias"],
-                contrarian_tendency=cfg["contrarian_tendency"],
-                influence_weight=cfg["influence_weight"],
+                opinion_resistance=jitter(cfg["opinion_resistance"]),
+                recency_bias=jitter(cfg["recency_bias"]),
+                contrarian_tendency=jitter(cfg["contrarian_tendency"]),
+                influence_weight=jitter(cfg["influence_weight"]),
                 proportion=proportion,
-                herding_coefficient=cfg.get("herding_coefficient", 0.3),
+                herding_coefficient=jitter(cfg.get("herding_coefficient", 0.3), lo=-1.0, hi=1.0),
                 current_opinion=random.uniform(-0.15, 0.15),
                 metadata=cfg.get("metadata", {}),
             ))
