@@ -25,6 +25,10 @@ _GLOBAL_HERD_WEIGHT = 0.3
 # time; a silent fallback reads as false stability).
 _MAX_POST_RETRIES = 1
 
+# Mean per-round T1 parse rate below which a run is flagged low-confidence: too
+# many silent fallbacks mean the opinions largely reflect format failures.
+_MIN_PARSE_RATE = 0.8
+
 # Rounds of movement history required before switching cascade detection from a
 # fixed threshold to a z-score against the observed movement distribution.
 _CASCADE_MIN_HISTORY = 3
@@ -90,6 +94,7 @@ class SimulationEngine:
 
         trajectory: list[float] = []
         herding_curve: list[float] = []
+        parse_rates: list[float] = []
         round_events: list[RoundEvent] = []
         total_t1_calls = 0
         total_cost_usd = 0.0
@@ -245,6 +250,7 @@ class SimulationEngine:
 
             trajectory.append(mean_op)
             herding_curve.append(herding_index)
+            parse_rates.append(parse_success_rate)
 
             event = RoundEvent(
                 round_number=round_num,
@@ -260,6 +266,7 @@ class SimulationEngine:
             round_events.append(event)
             yield event
 
+        mean_parse = statistics.mean(parse_rates) if parse_rates else 1.0
         return SimulationResult(
             seed=seed,
             trajectory=trajectory,
@@ -269,6 +276,8 @@ class SimulationEngine:
             total_cost_usd=total_cost_usd,
             herding_curve=herding_curve,
             argument_timeline=argument_timeline,
+            mean_parse_success_rate=mean_parse,
+            low_confidence=mean_parse < _MIN_PARSE_RATE,
         )
 
     def run(

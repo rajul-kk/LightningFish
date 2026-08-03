@@ -87,4 +87,6 @@ def result_to_dict(result: SimulationResult) -> dict:
         "event_type": result.seed.event_type,
         "herding_curve": result.herding_curve,
         "argument_timeline": result.argument_timeline,
+        "mean_parse_success_rate": result.mean_parse_success_rate,
+        "low_confidence": result.low_confidence,
     }

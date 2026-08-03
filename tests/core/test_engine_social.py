@@ -142,6 +142,32 @@ def test_parse_success_rate_present():
         assert 0.0 <= event.social_metrics.parse_success_rate <= 1.0
 
 
+def test_low_confidence_flag_set_when_parses_fail():
+    from lightningfish_core.engine import SimulationEngine
+
+    engine = SimulationEngine(_StubAdapter())
+    bad = SocialPost(
+        agent_id="x", archetype="Analyst", round_number=1,
+        stance="neutral", argument_tag="other", confidence=0.5,
+        blurb="garbled", opinion_before=0.1, opinion_after=0.1, parse_ok=False,
+    )
+    mock_provider = MagicMock()
+    # Every attempt (including the retry) fails to parse → parse rate 0.
+    mock_provider.generate_post.return_value = (bad, 0.1, 0.001)
+    mock_provider.get_opinion.return_value = (0.3, 0.001)
+    engine.provider = mock_provider
+
+    result = engine.run(_seed(), _agents(20), n_rounds=2)
+    assert result.mean_parse_success_rate < 0.8
+    assert result.low_confidence is True
+
+
+def test_clean_run_is_not_low_confidence():
+    engine = _make_engine()  # mock returns parse_ok posts
+    result = engine.run(_seed(), _agents(20), n_rounds=2)
+    assert result.low_confidence is False
+
+
 def test_failed_post_is_retried_once():
     from lightningfish_core.engine import SimulationEngine
 

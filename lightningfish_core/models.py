@@ -63,6 +63,8 @@ class SimulationResult:
     total_cost_usd: float
     herding_curve: list[float] = field(default_factory=list)
     argument_timeline: dict[str, int] = field(default_factory=dict)
+    mean_parse_success_rate: float = 1.0  # avg fraction of T1 posts parsed per round
+    low_confidence: bool = False          # True when parse rate fell below threshold
 
 
 @dataclass
