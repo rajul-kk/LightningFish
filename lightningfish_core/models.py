@@ -38,6 +38,7 @@ class AgentPersona:
     current_opinion: float = 0.0  # -1 to +1
     herding_coefficient: float = 0.3
     metadata: dict = field(default_factory=dict)
+    opinion_history: list[float] = field(default_factory=list)  # end-of-round opinions
 
 
 @dataclass

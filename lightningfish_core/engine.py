@@ -13,6 +13,11 @@ from .tier_router import SettledTracker, TierRouter
 
 _T2_USER_MSG = "Output ONLY the number, nothing else."
 
+# Weight on an agent's own recent momentum (last round's opinion change) in the
+# T3 update, giving opinion trajectories path-dependence rather than resetting to
+# a pure pull toward the crowd each round.
+_MOMENTUM_WEIGHT = 0.2
+
 # Fraction of the T3 herding target drawn from the influence-weighted global
 # crowd vs. the agent's own archetype cluster. In-group dominates so echo
 # chambers (and bifurcation) can persist, while cross-group contagion still
@@ -181,11 +186,19 @@ class SimulationEngine:
                     # damping would shrink their divergence toward zero and remove
                     # the force that produces bifurcation.
                     effective_λ = λ * (1.0 - agent.contrarian_tendency) if λ >= 0 else λ
+                    # Own momentum: last round's opinion change carries forward.
+                    hist = agent.opinion_history
+                    momentum = (hist[-1] - hist[-2]) if len(hist) >= 2 else 0.0
                     raw = (
                         (1.0 - abs(effective_λ)) * agent.current_opinion
                         + effective_λ * target
+                        + _MOMENTUM_WEIGHT * momentum
                     )
                     agent.current_opinion = max(-1.0, min(1.0, raw))
+
+            # — Record end-of-round opinion so agents carry a trajectory (memory) —
+            for agent in agents:
+                agent.opinion_history.append(agent.current_opinion)
 
             # — Update settled tracker —
             settled_ids = tracker.update(agents)

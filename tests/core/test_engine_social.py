@@ -142,6 +142,31 @@ def test_parse_success_rate_present():
         assert 0.0 <= event.social_metrics.parse_success_rate <= 1.0
 
 
+def test_momentum_carries_opinion_forward():
+    from lightningfish_core.engine import SimulationEngine
+
+    engine = SimulationEngine(_StubAdapter())
+    engine.provider = MagicMock()  # no T1/T2 will fire (see agent params below)
+
+    # All agents are T3: influence below the T1 threshold, |opinion| above the
+    # T2 uncertainty threshold. herding_coefficient=0 isolates the momentum term.
+    agents = []
+    for _ in range(10):
+        a = AgentPersona(
+            unique_id=str(uuid.uuid4()), archetype="Analyst",
+            opinion_resistance=0.5, recency_bias=0.5, contrarian_tendency=0.0,
+            influence_weight=0.3, proportion=0.1, herding_coefficient=0.0,
+            current_opinion=0.5,
+        )
+        a.opinion_history = [0.3, 0.5]  # upward momentum of +0.2
+        agents.append(a)
+
+    events = list(engine.run_streaming(_seed(), agents, n_rounds=1))
+    assert events[0].tier1_calls == 0  # confirms nobody was T1
+    # raw = 0.5 + MOMENTUM_WEIGHT*0.2 = 0.54 (herding term is zero)
+    assert all(a.current_opinion > 0.5 for a in agents)
+
+
 def test_low_confidence_flag_set_when_parses_fail():
     from lightningfish_core.engine import SimulationEngine
 
