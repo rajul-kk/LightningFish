@@ -16,7 +16,9 @@ lightningfish_service/    FastAPI service (runs locally or on Modal)
 lightningfish_web/        Next.js 15 frontend (deploys to Vercel)
 ```
 
-Two-tier simulation: ~10% of agents (high influence_weight) call the LLM each round; the rest update deterministically via a resistance/recency formula. This keeps cost low while preserving social dynamics.
+Three-tier simulation each round: **T1 originators** (~10%, highest influence) have the LLM write a structured post; **T2 reactors** (~20%, undecided) have the LLM re-evaluate after reading their feed; **T3 drifters** (the rest) update through deterministic herding math. Only ~30% of agents call the LLM per round, keeping cost low while preserving social dynamics.
+
+**For the full mechanics — opinion-update formulas, metrics, validation, and calibration — see [ARCHITECTURE.md](ARCHITECTURE.md).**
 
 ---
 
@@ -141,22 +143,34 @@ Set environment variables in the Vercel dashboard:
 
 ## Running backtests
 
-Backtests pull real data (SEC filings, GitHub PRs) and compare simulation trajectories against ground truth. They cost real API credits.
+Backtests pull real data and score the simulation's predicted direction against
+actual outcomes, alongside a naive baseline, a single-LLM-call baseline, and a
+majority-class reference, with a binomial significance test. See
+[ARCHITECTURE.md §4](ARCHITECTURE.md) for methodology.
 
 ```bash
-# Finance calibration — fetches 30 8-K filings, runs simulation for each
-python -m lightningfish_finance.run_backtest
+# Coding — class-balanced closed PRs from a public repo (tokenless works; a
+# GITHUB_TOKEN raises the rate limit from 60 to 5000 req/hr)
+python -m tests.integration.run_backtest coding pallets flask 20
 
-# Coding calibration — fetches 30 closed PRs from public repos
-python -m lightningfish_coding.run_backtest
+# Finance — (ticker, date, headline) events scored against the price move
+python -m tests.integration.run_backtest finance
+
+# Calibrate engine params against backtest accuracy
+python -m tests.integration.run_calibration pallets flask 20
 ```
+
+Cheap local runs: prefix with `LIGHTNINGFISH_MODEL=ollama:llama3.2` and shrink
+the sim with `LIGHTNINGFISH_N_AGENTS` / `LIGHTNINGFISH_N_ROUNDS`. Small models
+weaken the signal (watch the `low_confidence` flag) — use a real model for
+trustworthy numbers.
 
 ---
 
 ## Tests
 
 ```bash
-python -m pytest -q          # 54 tests, ~3s
+python -m pytest -q          # 157 tests, ~7s
 ```
 
 ---
@@ -197,5 +211,12 @@ All proportions are configurable in the simulation form.
 | Haiku 4.5 | $0.80/M | $4/M | Fast iteration, cost control |
 | Sonnet 4.6 | $3/M | $15/M | Default — balanced |
 | Opus 4.8 | $15/M | $75/M | Highest reasoning quality |
+| Ollama (local) | $0 | $0 | Free local testing via `ollama:<model>` |
 
 Typical cost per simulation (300 agents, 10 rounds, Sonnet): ~$0.05.
+
+Select a model with `LIGHTNINGFISH_MODEL` (CLIs) or the `model` argument
+(`SimulationEngine`). `ollama:llama3.2` routes to a local Ollama server at no
+cost — good for plumbing checks, but small models drop the structured output
+format often and produce muted signals (see the `parse_success_rate` /
+`low_confidence` fields).
