@@ -244,3 +244,59 @@ Register it so `registry.get("<id>")` resolves. Keep domain strings out of
 | `_MIN_PARSE_RATE` | 0.80 | engine |
 | SettledTracker threshold / patience | 0.03 / 2 | tier_router |
 | jitter scale | ±0.08 | jitter |
+
+---
+
+## 10. Findings so far & how to read a run
+
+### What has been validated
+
+- **The mechanics do what they claim.** On a real GME short-squeeze scenario the
+  ShortSeller camp diverged from a rising bullish crowd (opinions moved *opposite*
+  to the majority) — the `resistance_override` firing, which was previously dead
+  code. The herding index stayed in `[0, 1]` (no more `-115%` artifacts) and ADS
+  stayed ≤ 1.
+- **The measurement pipeline scores real data correctly.** A tokenless,
+  class-balanced GitHub pull scored the naive baseline against actual PR merge
+  outcomes end-to-end. This also surfaced a real sampling lesson: mature repos
+  batch-close stale PRs, so samples **must** be class-balanced or a trivial
+  always-block baseline looks perfect.
+- **The parse retry helps.** Per-round parse rates rose from ~0.50 dips toward
+  1.0; the residual failures on a 3B model are exactly what `low_confidence`
+  exists to flag.
+- **The metrics distinguish regimes.** The deterministic scenario tests produce
+  separable fingerprints: herd (rising index, converging), shock (a cascade at
+  the trigger round), and bifurcation (staying more split than the herd case).
+
+### What has NOT been shown yet
+
+**The core predictive claim is untested.** No run has yet measured whether the
+multi-agent simulation beats a **single LLM call** (or the naive/majority
+references) at predicting real outcomes on a statistically meaningful sample with
+a capable model. The baselines, significance test, and calibration harness are
+the apparatus to produce that number — the number itself is still pending. Until
+it exists, treat Lightningfish as a **validated qualitative model, not a
+validated predictor.**
+
+Producing it requires a real model (haiku or better — 3B local models drop the
+format and mute the signal) and a `GITHUB_TOKEN` for a ~20+ event balanced pull:
+
+```bash
+GITHUB_TOKEN=... LIGHTNINGFISH_MODEL=claude-haiku-4-5-20251001 \
+  python -m tests.integration.run_backtest coding pallets flask 24
+```
+
+### How to read a run
+
+1. **Confidence first.** If `low_confidence` is true (mean `parse_success_rate`
+   < 0.8), stop — the result reflects format failures, not dynamics. Use a bigger
+   model.
+2. **Consensus.** `herding_index` near 1 = agreement; near 0 = split. A **falling**
+   index (`herding_delta < 0`) means opinions are diverging (bifurcation), which
+   won't show as a negative number any more.
+3. **Shocks.** `cascade_detected` marks a round whose mean move is a statistical
+   outlier; `cascade_trigger_archetype` is attribution, not proven causation.
+4. **Backtest verdict.** Read `beats_baselines` (must clear *every* entry,
+   including `single_llm`) together with `p_value_vs_best` — a high accuracy on
+   few events with `p > 0.05` is not yet signal.
+
