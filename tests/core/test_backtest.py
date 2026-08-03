@@ -133,6 +133,26 @@ def test_significance_high_p_when_sim_matches_reference():
     assert report.p_value_vs_best > 0.05
 
 
+def test_parse_health_is_aggregated_into_report():
+    from lightningfish_core.models import SimulationResult
+
+    table = {"e1": (1, 0.0, True), "e2": (-1, 0.0, True)}
+    adapter = _StubAdapter(table)
+    engine = MagicMock()
+
+    def run(seed, agents, n_rounds):
+        return SimulationResult(
+            seed=seed, trajectory=[0.0, 0.5], round_events=[], final_distribution=[],
+            total_tier1_calls=0, total_cost_usd=0.0,
+            mean_parse_success_rate=0.4, low_confidence=True,
+        )
+    engine.run.side_effect = run
+    events = [BacktestEvent("e1", _seed("e1")), BacktestEvent("e2", _seed("e2"))]
+    report = run_backtest(adapter, engine, events, 1, 1)
+    assert report.low_confidence_events == 2
+    assert report.mean_parse_success_rate == 0.4
+
+
 def test_events_without_truth_or_direction_are_skipped():
     table = {
         "e1": (0, 1.0, True),    # has truth but no direction → skip

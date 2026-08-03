@@ -55,6 +55,10 @@ class BacktestReport:
     # One-sided binomial p: probability of the sim's correct count under a null
     # that only matches the best reference. Low p = the edge is unlikely chance.
     p_value_vs_best: float = 1.0
+    # Structured-output health across the scored runs. A backtest dominated by
+    # parse failures is uninterpretable regardless of accuracy.
+    mean_parse_success_rate: float = 1.0
+    low_confidence_events: int = 0
     outcomes: list[EventOutcome] = field(default_factory=list)
     skipped: int = 0  # events with no ground truth or no directional outcome
 
@@ -66,10 +70,14 @@ class BacktestReport:
         bl = ", ".join(f"{k} {v:.0%}" for k, v in self.baseline_accuracy.items())
         beats = all(self.beats_baselines.values()) and self.sim_accuracy > self.majority_class_accuracy
         verdict = "BEATS all references" if beats else "does NOT beat all references"
+        conf = ""
+        if self.low_confidence_events:
+            conf = (f" | ⚠ {self.low_confidence_events}/{self.n_events} runs low-confidence "
+                    f"(parse {self.mean_parse_success_rate:.0%})")
         return (
             f"{self.n_events} events | sim {self.sim_accuracy:.0%} | "
             f"majority {self.majority_class_accuracy:.0%} | {bl} → {verdict} "
-            f"(p={self.p_value_vs_best:.3f}, {self.skipped} skipped)"
+            f"(p={self.p_value_vs_best:.3f}, {self.skipped} skipped){conf}"
         )
 
 
@@ -110,6 +118,8 @@ def run_backtest(
 
     outcomes: list[EventOutcome] = []
     skipped = 0
+    parse_rates: list[float] = []
+    low_conf_events = 0
 
     for event in events:
         truth = adapter.get_ground_truth(event.seed)
@@ -124,6 +134,9 @@ def run_backtest(
         agents = adapter.build_personas(n_agents)
         result = engine.run(event.seed, agents, n_rounds=n_rounds)
         sim_dir = sign(result.trajectory[-1]) if result.trajectory else 0
+        parse_rates.append(result.mean_parse_success_rate)
+        if result.low_confidence:
+            low_conf_events += 1
 
         baseline_dirs = {name: fn(event) for name, fn in baselines.items()}
         outcomes.append(EventOutcome(
@@ -164,6 +177,8 @@ def run_backtest(
         majority_class_accuracy=majority_acc,
         beats_baselines={name: sim_acc > acc for name, acc in baseline_acc.items()},
         p_value_vs_best=float(p_value),
+        mean_parse_success_rate=(sum(parse_rates) / len(parse_rates) if parse_rates else 1.0),
+        low_confidence_events=low_conf_events,
         outcomes=outcomes,
         skipped=skipped,
     )
