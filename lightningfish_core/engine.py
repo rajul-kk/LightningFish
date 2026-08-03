@@ -63,11 +63,17 @@ class SimulationEngine:
         adapter: DomainAdapter,
         model: str = "claude-sonnet-4-6",
         base_url: str | None = None,
+        global_herd_weight: float = _GLOBAL_HERD_WEIGHT,
+        momentum_weight: float = _MOMENTUM_WEIGHT,
     ) -> None:
         self.adapter = adapter
         self.model = model
         self.provider: LLMProvider = make_provider(model, base_url)
         self.router = TierRouter()
+        # Tunable dynamics (see module constants for defaults) — exposed so the
+        # calibration harness can sweep them against backtest accuracy.
+        self.global_herd_weight = global_herd_weight
+        self.momentum_weight = momentum_weight
 
     def run_streaming(
         self,
@@ -182,8 +188,8 @@ class SimulationEngine:
                 else:
                     cluster_mean = cluster_means.get(agent.archetype, 0.0)
                     target = (
-                        _GLOBAL_HERD_WEIGHT * crowd_signal
-                        + (1.0 - _GLOBAL_HERD_WEIGHT) * cluster_mean
+                        self.global_herd_weight * crowd_signal
+                        + (1.0 - self.global_herd_weight) * cluster_mean
                     )
                     λ = agent.herding_coefficient
                     # Conformists (λ ≥ 0) herd less the more contrarian they are.
@@ -197,7 +203,7 @@ class SimulationEngine:
                     raw = (
                         (1.0 - abs(effective_λ)) * agent.current_opinion
                         + effective_λ * target
-                        + _MOMENTUM_WEIGHT * momentum
+                        + self.momentum_weight * momentum
                     )
                     agent.current_opinion = max(-1.0, min(1.0, raw))
 
