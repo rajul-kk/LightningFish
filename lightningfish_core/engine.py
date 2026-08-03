@@ -8,7 +8,7 @@ from .llm_provider import LLMProvider, make_provider
 from .models import AgentPersona, EnrichedSeed, RoundEvent, SimulationResult
 from .resistance import blend_opinion
 from .rule_agent import RuleBasedAgent
-from .social import PostStore, SocialMetrics, SocialPost
+from .social import PostStore, SocialMetrics, SocialPost, build_follower_graph
 from .tier_router import SettledTracker, TierRouter
 
 _T2_USER_MSG = "Output ONLY the number, nothing else."
@@ -89,6 +89,7 @@ class SimulationEngine:
         """
         store = PostStore()
         tracker = SettledTracker()
+        follower_graph = build_follower_graph(agents)
         settled_ids: set[str] = set()
         taxonomy = self.adapter.argument_taxonomy()
         taxonomy_set = set(taxonomy)
@@ -116,7 +117,9 @@ class SimulationEngine:
 
             # — T1: generate structured post + updated opinion —
             for agent in t1:
-                feed = store.sample_for_feed(agent, round_num)
+                feed = store.sample_for_feed(
+                    agent, round_num, followed_ids=follower_graph.get(agent.unique_id)
+                )
                 viral = store.viral_post(round_num)
                 system = self.adapter.post_system_prompt(seed, agent, feed, viral)
 
@@ -158,7 +161,9 @@ class SimulationEngine:
 
             # — T2: reactors re-evaluate after reading the feed (one call each) —
             for agent in t2:
-                feed = store.sample_for_feed(agent, round_num)
+                feed = store.sample_for_feed(
+                    agent, round_num, followed_ids=follower_graph.get(agent.unique_id)
+                )
                 viral = store.viral_post(round_num)
                 system = self.adapter.reactor_system_prompt(seed, agent, feed, viral)
                 llm_opinion, cost = self.provider.get_opinion(system, _T2_USER_MSG, self.model)

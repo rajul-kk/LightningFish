@@ -1,7 +1,49 @@
 from __future__ import annotations
 
+import uuid
+
 from lightningfish_core.models import AgentPersona
-from lightningfish_core.social import PostStore, SocialMetrics, SocialPost
+from lightningfish_core.social import (
+    PostStore,
+    SocialMetrics,
+    SocialPost,
+    build_follower_graph,
+)
+
+
+def _agent(influence: float, archetype: str = "A") -> AgentPersona:
+    return AgentPersona(
+        unique_id=str(uuid.uuid4()), archetype=archetype,
+        opinion_resistance=0.5, recency_bias=0.5, contrarian_tendency=0.1,
+        influence_weight=influence, proportion=0.1,
+    )
+
+
+def test_follower_graph_everyone_follows_top_influencers():
+    agents = [_agent(0.9), _agent(0.85), _agent(0.8)] + [_agent(0.2) for _ in range(10)]
+    top_ids = {agents[0].unique_id, agents[1].unique_id, agents[2].unique_id}
+    graph = build_follower_graph(agents, n_influencers=3, n_peers=2)
+    for a in agents:
+        followed = graph[a.unique_id]
+        assert a.unique_id not in followed  # never follows self
+        # every non-influencer follows all three top influencers
+        if a.unique_id not in top_ids:
+            assert top_ids <= followed
+
+
+def test_sample_for_feed_respects_followed_ids():
+    store = PostStore()
+    author = _agent(0.9)
+    other = _agent(0.2)
+    for a in (author, other):
+        store.add(SocialPost(
+            agent_id=a.unique_id, archetype="A", round_number=1,
+            stance="bullish", argument_tag="x", confidence=0.5,
+            blurb="b", opinion_before=0.0, opinion_after=0.1,
+        ))
+    reader = _agent(0.3)
+    feed = store.sample_for_feed(reader, round_number=2, followed_ids={author.unique_id})
+    assert feed and all(p.agent_id == author.unique_id for p in feed)
 
 
 def _make_post(agent_id: str, archetype: str, rnd: int, tag: str, confidence: float = 0.7) -> SocialPost:
