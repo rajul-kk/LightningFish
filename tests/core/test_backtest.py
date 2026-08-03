@@ -122,6 +122,22 @@ def test_events_without_truth_or_direction_are_skipped():
     assert report.skipped == 2
 
 
+def test_llm_baseline_uses_provider_direction():
+    from lightningfish_core.backtest import llm_baseline
+
+    table = {"e1": (1, 0.0, True), "e2": (-1, 0.0, True)}
+    adapter = _StubAdapter(table)
+    engine = _engine_returning({"e1": 0.5, "e2": -0.5})
+    # Single-call baseline: provider says +0.8 (up) regardless — right on e1, wrong on e2.
+    engine.provider.get_opinion.return_value = (0.8, 0.0)
+    baselines = {"single_llm": llm_baseline(adapter, engine)}
+    events = [BacktestEvent("e1", _seed("e1")), BacktestEvent("e2", _seed("e2"))]
+
+    report = run_backtest(adapter, engine, events, 1, 1, baselines=baselines)
+    assert report.baseline_accuracy["single_llm"] == 0.5
+    assert report.outcomes[0].baseline_directions["single_llm"] == 1
+
+
 def test_finance_baseline_and_truth_direction():
     from lightningfish_finance.config import FinanceDomainAdapter
     a = FinanceDomainAdapter()

@@ -48,6 +48,19 @@ class DomainAdapter(ABC):
         """
         return 0
 
+    def baseline_llm_prompt(self, seed: EnrichedSeed) -> str:
+        """
+        One-shot prompt for the 'single_llm' backtest baseline: ask the model
+        for a directional call in a single call, with no agents or rounds. The
+        multi-agent sim must beat this to justify its extra cost.
+        """
+        neg, pos = self.opinion_labels
+        return (
+            f"Event: {seed.summary}\n\n"
+            f"Predict the outcome as a single float between -1.0 ({neg}) and "
+            f"1.0 ({pos}). Output ONLY the number."
+        )
+
     @abstractmethod
     def argument_taxonomy(self) -> list[str]:
         """Return the ordered list of argument tags for this domain (exactly 8 items)."""

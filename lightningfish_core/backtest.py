@@ -72,6 +72,19 @@ def _naive_baseline(adapter: DomainAdapter) -> Callable[[BacktestEvent], int]:
     return lambda event: sign(adapter.naive_prediction(event.seed))
 
 
+def llm_baseline(adapter: DomainAdapter, engine: SimulationEngine) -> Callable[[BacktestEvent], int]:
+    """One model call per event — the bar the multi-agent sim must clear to
+    justify running many agents over many rounds."""
+    def predict(event: BacktestEvent) -> int:
+        opinion, _ = engine.provider.get_opinion(
+            adapter.baseline_llm_prompt(event.seed),
+            "Output ONLY the number.",
+            engine.model,
+        )
+        return sign(opinion)
+    return predict
+
+
 def run_backtest(
     adapter: DomainAdapter,
     engine: SimulationEngine,

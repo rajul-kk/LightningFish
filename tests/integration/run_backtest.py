@@ -21,8 +21,20 @@ import sys
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-from lightningfish_core.backtest import BacktestReport, run_backtest
+from lightningfish_core.backtest import (
+    BacktestReport,
+    llm_baseline,
+    run_backtest,
+    sign,
+)
 from lightningfish_core.engine import SimulationEngine
+
+
+def _baselines(adapter, engine):
+    return {
+        "naive": lambda e: sign(adapter.naive_prediction(e.seed)),
+        "single_llm": llm_baseline(adapter, engine),
+    }
 
 
 def _sim_size(default_agents: int, default_rounds: int) -> tuple[int, int]:
@@ -78,7 +90,8 @@ def _run_coding(args: list[str]) -> None:
     model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
     engine = SimulationEngine(adapter, model=model)
     n_agents, n_rounds = _sim_size(60, 6)
-    report = run_backtest(adapter, engine, events, n_agents=n_agents, n_rounds=n_rounds)
+    report = run_backtest(adapter, engine, events, n_agents=n_agents,
+                          n_rounds=n_rounds, baselines=_baselines(adapter, engine))
     _print_report(f"coding {owner}/{repo}", report)
 
 
@@ -97,7 +110,8 @@ def _run_finance() -> None:
     model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
     engine = SimulationEngine(adapter, model=model)
     n_agents, n_rounds = _sim_size(100, 8)
-    report = run_backtest(adapter, engine, events, n_agents=n_agents, n_rounds=n_rounds)
+    report = run_backtest(adapter, engine, events, n_agents=n_agents,
+                          n_rounds=n_rounds, baselines=_baselines(adapter, engine))
     _print_report("finance", report)
 
 
