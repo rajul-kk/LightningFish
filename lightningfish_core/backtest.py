@@ -18,6 +18,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Callable
 
+from scipy.stats import binomtest
+
 from .adapter import DomainAdapter
 from .engine import SimulationEngine
 from .models import EnrichedSeed
@@ -50,6 +52,9 @@ class BacktestReport:
     baseline_accuracy: dict[str, float]
     majority_class_accuracy: float
     beats_baselines: dict[str, bool]
+    # One-sided binomial p: probability of the sim's correct count under a null
+    # that only matches the best reference. Low p = the edge is unlikely chance.
+    p_value_vs_best: float = 1.0
     outcomes: list[EventOutcome] = field(default_factory=list)
     skipped: int = 0  # events with no ground truth or no directional outcome
 
@@ -64,7 +69,7 @@ class BacktestReport:
         return (
             f"{self.n_events} events | sim {self.sim_accuracy:.0%} | "
             f"majority {self.majority_class_accuracy:.0%} | {bl} → {verdict} "
-            f"({self.skipped} skipped)"
+            f"(p={self.p_value_vs_best:.3f}, {self.skipped} skipped)"
         )
 
 
@@ -144,12 +149,21 @@ def run_backtest(
     else:
         majority_acc = 0.0
 
+    # Is the sim's edge over the best reference distinguishable from chance?
+    best_ref = max([majority_acc, *baseline_acc.values()]) if baseline_acc else majority_acc
+    sim_correct_count = sum(o.sim_correct for o in outcomes)
+    if n and 0.0 < best_ref < 1.0:
+        p_value = binomtest(sim_correct_count, n, p=best_ref, alternative="greater").pvalue
+    else:
+        p_value = 1.0
+
     return BacktestReport(
         n_events=n,
         sim_accuracy=sim_acc,
         baseline_accuracy=baseline_acc,
         majority_class_accuracy=majority_acc,
         beats_baselines={name: sim_acc > acc for name, acc in baseline_acc.items()},
+        p_value_vs_best=float(p_value),
         outcomes=outcomes,
         skipped=skipped,
     )

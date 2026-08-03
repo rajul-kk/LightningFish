@@ -108,6 +108,31 @@ def test_majority_class_accuracy_reflects_skew():
     assert report.majority_class_accuracy == 0.75
 
 
+def test_significance_low_p_when_sim_clearly_beats_reference():
+    # 10 events, balanced actuals (majority ref = 50%); sim gets all 10 right.
+    ids = [f"e{i}" for i in range(10)]
+    table = {i: (1 if k % 2 == 0 else -1, 0.0, True) for k, i in enumerate(ids)}
+    adapter = _StubAdapter(table)
+    engine = _engine_returning({i: (0.5 if table[i][0] == 1 else -0.5) for i in ids})
+    events = [BacktestEvent(i, _seed(i)) for i in ids]
+    report = run_backtest(adapter, engine, events, 1, 1)
+    assert report.sim_accuracy == 1.0
+    assert report.p_value_vs_best < 0.05
+
+
+def test_significance_high_p_when_sim_matches_reference():
+    # Sim only as good as the 50% majority reference → not significant.
+    ids = [f"e{i}" for i in range(10)]
+    table = {i: (1 if k % 2 == 0 else -1, 0.0, True) for k, i in enumerate(ids)}
+    adapter = _StubAdapter(table)
+    # Sim always predicts up → 50% correct, same as majority reference.
+    engine = _engine_returning({i: 0.5 for i in ids})
+    events = [BacktestEvent(i, _seed(i)) for i in ids]
+    report = run_backtest(adapter, engine, events, 1, 1)
+    assert report.sim_accuracy == 0.5
+    assert report.p_value_vs_best > 0.05
+
+
 def test_events_without_truth_or_direction_are_skipped():
     table = {
         "e1": (0, 1.0, True),    # has truth but no direction → skip
