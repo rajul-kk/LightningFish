@@ -46,10 +46,13 @@ _FINANCE_EVENTS = [
 def _print_report(label: str, report: BacktestReport) -> None:
     print(f"\n=== {label} ===")
     print(report.summary_line())
-    print(f"  {'event':<28} {'sim':>4} {'base':>4} {'actual':>6}  result")
+    base_names = list(report.baseline_accuracy)
+    header = "  " + f"{'event':<28} {'sim':>4} " + " ".join(f"{n[:8]:>8}" for n in base_names)
+    print(header + f" {'actual':>6}  result")
     for o in report.outcomes:
         mark = "ok " if o.sim_correct else "MISS"
-        print(f"  {o.event_id:<28} {o.sim_direction:>+4} {o.baseline_direction:>+4} "
+        bases = " ".join(f"{o.baseline_directions[n]:>+8}" for n in base_names)
+        print(f"  {o.event_id:<28} {o.sim_direction:>+4} {bases} "
               f"{o.actual_direction:>+6}  {mark}")
 
 

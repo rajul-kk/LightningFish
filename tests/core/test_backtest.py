@@ -68,7 +68,8 @@ def test_sign():
 
 
 def test_sim_beats_baseline_when_more_accurate():
-    # Two events. Sim gets both right; baseline gets both wrong.
+    # Two events, opposite directions (majority reference = 50%).
+    # Sim gets both right; naive baseline gets both wrong.
     table = {
         "e1": (1, -1.0, True),   # actual up, baseline says down
         "e2": (-1, 1.0, True),   # actual down, baseline says up
@@ -80,18 +81,31 @@ def test_sim_beats_baseline_when_more_accurate():
     report = run_backtest(adapter, engine, events, n_agents=1, n_rounds=1)
     assert report.n_events == 2
     assert report.sim_accuracy == 1.0
-    assert report.baseline_accuracy == 0.0
-    assert report.beats_baseline is True
+    assert report.baseline_accuracy["naive"] == 0.0
+    assert report.beats_baselines["naive"] is True
+    assert report.majority_class_accuracy == 0.5
 
 
 def test_baseline_beats_sim():
-    table = {"e1": (1, 1.0, True)}   # actual up, baseline right
+    table = {"e1": (1, 1.0, True), "e2": (-1, -1.0, True)}  # baseline right, sim wrong
     adapter = _StubAdapter(table)
-    engine = _engine_returning({"e1": -0.5})  # sim wrong
-    report = run_backtest(adapter, engine, [BacktestEvent("e1", _seed("e1"))], 1, 1)
+    engine = _engine_returning({"e1": -0.5, "e2": 0.5})
+    events = [BacktestEvent("e1", _seed("e1")), BacktestEvent("e2", _seed("e2"))]
+    report = run_backtest(adapter, engine, events, 1, 1)
     assert report.sim_accuracy == 0.0
-    assert report.baseline_accuracy == 1.0
-    assert report.beats_baseline is False
+    assert report.baseline_accuracy["naive"] == 1.0
+    assert report.beats_baselines["naive"] is False
+
+
+def test_majority_class_accuracy_reflects_skew():
+    # 3 up, 1 down → majority-class predictor is 75% accurate.
+    table = {i: (1, 0.0, True) for i in ("e1", "e2", "e3")}
+    table["e4"] = (-1, 0.0, True)
+    adapter = _StubAdapter(table)
+    engine = _engine_returning({i: 0.1 for i in ("e1", "e2", "e3", "e4")})
+    events = [BacktestEvent(i, _seed(i)) for i in ("e1", "e2", "e3", "e4")]
+    report = run_backtest(adapter, engine, events, 1, 1)
+    assert report.majority_class_accuracy == 0.75
 
 
 def test_events_without_truth_or_direction_are_skipped():

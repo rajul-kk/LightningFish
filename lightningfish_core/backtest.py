@@ -1,19 +1,22 @@
 """
-Backtest harness: does the simulation predict real outcomes better than a
-trivial baseline?
+Backtest harness: does the simulation predict real outcomes better than trivial
+baselines?
 
-For each historical event we compare three directional calls against the actual
-outcome:
-  - the simulation's final mean opinion,
-  - a naive baseline the domain defines (e.g. sign of headline sentiment), and
-  - the ground truth (e.g. sign of the subsequent price move / PR merged).
+For each historical event we compare the simulation's final direction and one or
+more baselines against the actual outcome. The report leads with whether the sim
+beats each baseline (raw accuracy can look good by luck) and, once a significance
+test is added, whether that edge is distinguishable from chance.
 
-A simulation that cannot beat the naive baseline is not adding value, so the
-report leads with that comparison rather than raw accuracy.
+Baselines are ``(BacktestEvent) -> int`` callables returning a direction in
+{-1, 0, 1}. The default "naive" baseline uses the domain's naive_prediction; the
+CLI can add a "single_llm" baseline (one model call per event) to test whether
+the multi-agent machinery beats simply asking the model once.
 """
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass, field
+from typing import Callable
 
 from .adapter import DomainAdapter
 from .engine import SimulationEngine
@@ -35,28 +38,38 @@ class BacktestEvent:
 class EventOutcome:
     event_id: str
     sim_direction: int
-    baseline_direction: int
+    baseline_directions: dict[str, int]
     actual_direction: int
     sim_correct: bool
-    baseline_correct: bool
 
 
 @dataclass
 class BacktestReport:
     n_events: int
     sim_accuracy: float
-    baseline_accuracy: float
-    beats_baseline: bool
+    baseline_accuracy: dict[str, float]
+    majority_class_accuracy: float
+    beats_baselines: dict[str, bool]
     outcomes: list[EventOutcome] = field(default_factory=list)
     skipped: int = 0  # events with no ground truth or no directional outcome
 
+    def best_reference_accuracy(self) -> float:
+        """Highest bar the sim must clear: best baseline or the majority class."""
+        return max([self.majority_class_accuracy, *self.baseline_accuracy.values()])
+
     def summary_line(self) -> str:
-        verdict = "BEATS baseline" if self.beats_baseline else "does NOT beat baseline"
+        bl = ", ".join(f"{k} {v:.0%}" for k, v in self.baseline_accuracy.items())
+        beats = all(self.beats_baselines.values()) and self.sim_accuracy > self.majority_class_accuracy
+        verdict = "BEATS all references" if beats else "does NOT beat all references"
         return (
-            f"{self.n_events} events | sim {self.sim_accuracy:.0%} vs "
-            f"baseline {self.baseline_accuracy:.0%} → {verdict} "
+            f"{self.n_events} events | sim {self.sim_accuracy:.0%} | "
+            f"majority {self.majority_class_accuracy:.0%} | {bl} → {verdict} "
             f"({self.skipped} skipped)"
         )
+
+
+def _naive_baseline(adapter: DomainAdapter) -> Callable[[BacktestEvent], int]:
+    return lambda event: sign(adapter.naive_prediction(event.seed))
 
 
 def run_backtest(
@@ -65,14 +78,18 @@ def run_backtest(
     events: list[BacktestEvent],
     n_agents: int = 100,
     n_rounds: int = 8,
+    baselines: dict[str, Callable[[BacktestEvent], int]] | None = None,
 ) -> BacktestReport:
     """
-    Run every event through the engine and score sim vs baseline vs truth.
+    Run every event through the engine and score sim vs baselines vs truth.
 
     Events whose ground truth is unavailable, or whose actual outcome has no
     direction (a flat price move / unresolved PR), are skipped rather than
     scored as wrong — they carry no signal to predict.
     """
+    if baselines is None:
+        baselines = {"naive": _naive_baseline(adapter)}
+
     outcomes: list[EventOutcome] = []
     skipped = 0
 
@@ -88,27 +105,38 @@ def run_backtest(
 
         agents = adapter.build_personas(n_agents)
         result = engine.run(event.seed, agents, n_rounds=n_rounds)
-
         sim_dir = sign(result.trajectory[-1]) if result.trajectory else 0
-        baseline_dir = sign(adapter.naive_prediction(event.seed))
 
+        baseline_dirs = {name: fn(event) for name, fn in baselines.items()}
         outcomes.append(EventOutcome(
             event_id=event.event_id,
             sim_direction=sim_dir,
-            baseline_direction=baseline_dir,
+            baseline_directions=baseline_dirs,
             actual_direction=actual,
             sim_correct=(sim_dir == actual),
-            baseline_correct=(baseline_dir == actual),
         ))
 
     n = len(outcomes)
     sim_acc = sum(o.sim_correct for o in outcomes) / n if n else 0.0
-    base_acc = sum(o.baseline_correct for o in outcomes) / n if n else 0.0
+    baseline_acc = {
+        name: (sum(o.baseline_directions[name] == o.actual_direction for o in outcomes) / n
+               if n else 0.0)
+        for name in baselines
+    }
+    # Majority-class reference: accuracy of always predicting the more common
+    # actual outcome. A sim that cannot beat this has learned nothing.
+    if n:
+        counts = Counter(o.actual_direction for o in outcomes)
+        majority_acc = max(counts.values()) / n
+    else:
+        majority_acc = 0.0
+
     return BacktestReport(
         n_events=n,
         sim_accuracy=sim_acc,
-        baseline_accuracy=base_acc,
-        beats_baseline=sim_acc > base_acc,
+        baseline_accuracy=baseline_acc,
+        majority_class_accuracy=majority_acc,
+        beats_baselines={name: sim_acc > acc for name, acc in baseline_acc.items()},
         outcomes=outcomes,
         skipped=skipped,
     )
