@@ -14,10 +14,15 @@ def test_classify_diff_size():
 
 def _mock_get(url, **kwargs):
     mock = MagicMock()
-    if "/pulls/" in url and "/files" not in url and "/reviews" not in url:
+    if "/check-runs" in url:
+        mock.json.return_value = {"check_runs": [
+            {"conclusion": "success"}, {"conclusion": "success"},
+            {"conclusion": "failure"}, {"conclusion": "success"},
+        ]}
+    elif "/pulls/" in url and "/files" not in url and "/reviews" not in url:
         mock.json.return_value = {
             "title": "Add rate limiting middleware",
-            "body": "Closes #42.",
+            "body": "Closes #42. Adds a token-bucket limiter to the request path.",
             "additions": 120,
             "deletions": 30,
             "user": {"login": "dev123"},
@@ -26,8 +31,9 @@ def _mock_get(url, **kwargs):
         }
     elif "/files" in url:
         mock.json.return_value = [
-            {"filename": "src/middleware/rate_limit.py"},
-            {"filename": "tests/test_rate_limit.py"},
+            {"filename": "src/middleware/rate_limit.py", "additions": 100,
+             "deletions": 20, "patch": "@@ -1 +1 @@\n+def limit(): ..."},
+            {"filename": "tests/test_rate_limit.py", "additions": 20, "deletions": 10},
         ]
     elif "search/issues" in url:
         mock.json.return_value = {"total_count": 15}
@@ -49,3 +55,9 @@ def test_enrich_returns_enriched_seed():
     assert result.metadata["is_test_included"] is True
     assert result.metadata["author_pr_history"] == 15
     assert "python" in result.metadata["languages_touched"]
+    # CI pass rate is now populated at enrich time (3 of 4 checks passing).
+    assert result.metadata["ci_pass_rate"] == 0.75
+    # Seed now carries description and diff signal the naive baseline can't see.
+    assert "token-bucket limiter" in result.summary
+    assert "Files changed:" in result.summary
+    assert "rate_limit.py" in result.summary

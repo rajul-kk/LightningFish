@@ -4,19 +4,9 @@ import requests
 
 from lightningfish_core.models import GroundTruthRecord
 
-from .seed_enricher import gh_headers
+from .seed_enricher import fetch_ci_pass_rate, gh_headers
 
-
-def fetch_ci_pass_rate(owner: str, repo: str, sha: str, token: str | None) -> float | None:
-    resp = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/commits/{sha}/check-runs",
-        headers=gh_headers(token),
-    )
-    runs = resp.json().get("check_runs", [])
-    if not runs:
-        return None
-    passed = sum(1 for r in runs if r.get("conclusion") == "success")
-    return passed / len(runs)
+__all__ = ["fetch_ci_pass_rate", "get_coding_ground_truth"]
 
 
 def get_coding_ground_truth(

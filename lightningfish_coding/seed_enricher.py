@@ -43,6 +43,41 @@ def gh_headers(token: str | None) -> dict[str, str]:
     return headers
 
 
+def fetch_ci_pass_rate(owner: str, repo: str, sha: str, token: str | None) -> float | None:
+    """Fraction of CI check-runs on ``sha`` that succeeded, or None if unknown."""
+    try:
+        resp = requests.get(
+            f"https://api.github.com/repos/{owner}/{repo}/commits/{sha}/check-runs",
+            headers=gh_headers(token),
+        )
+        runs = resp.json().get("check_runs", []) if isinstance(resp.json(), dict) else []
+    except Exception:
+        return None
+    if not runs:
+        return None
+    passed = sum(1 for r in runs if r.get("conclusion") == "success")
+    return passed / len(runs)
+
+
+def _diff_summary(files: object, max_files: int = 8, max_patch_chars: int = 600) -> str:
+    """Compact per-file change list plus a short patch excerpt from the biggest
+    files — signal about the actual change the naive baseline cannot see."""
+    if not isinstance(files, list) or not files:
+        return ""
+    ranked = sorted(
+        files, key=lambda f: f.get("additions", 0) + f.get("deletions", 0), reverse=True
+    )
+    lines = [
+        f"  {f.get('filename', '?')} (+{f.get('additions', 0)}/-{f.get('deletions', 0)})"
+        for f in ranked[:max_files]
+    ]
+    out = "Files changed:\n" + "\n".join(lines)
+    patches = "\n".join(f.get("patch", "") for f in ranked[:2] if f.get("patch"))
+    if patches:
+        out += "\n\nDiff excerpt:\n" + patches[:max_patch_chars]
+    return out
+
+
 def enrich_coding_seed(pr_url: str, github_token: str | None) -> EnrichedSeed:
     owner, repo, pr_number = _parse_pr_url(pr_url)
     if not _GITHUB_NAME_RE.match(owner) or not _GITHUB_NAME_RE.match(repo):
@@ -74,12 +109,26 @@ def enrich_coding_seed(pr_url: str, github_token: str | None) -> EnrichedSeed:
     linked_issue = re.search(r"(?:closes?|fixes?|resolves?)\s+#(\d+)", body, re.IGNORECASE)
     linked_issue_num = int(linked_issue.group(1)) if linked_issue else None
 
+    head_sha = pr.get("head", {}).get("sha")
+    ci_pass_rate = fetch_ci_pass_rate(owner, repo, head_sha, github_token) if head_sha else None
+    ci_str = "unknown" if ci_pass_rate is None else f"{ci_pass_rate:.0%} passing"
+
+    description = body.strip()
+    if len(description) > 400:
+        description = description[:400] + "..."
+    diff_summary = _diff_summary(files)
+
     summary = (
         f"PR #{pr_number} in {owner}/{repo}: {pr.get('title', '')}. "
         f"{total_lines} lines changed ({classify_diff_size(total_lines)}), "
         f"languages: {', '.join(languages) or 'unknown'}. "
-        f"Tests {'included' if is_test_included else 'not included'}."
+        f"Tests {'included' if is_test_included else 'not included'}. "
+        f"CI: {ci_str}. Author has {author_pr_history} prior merged PRs."
     )
+    if description:
+        summary += f"\n\nDescription: {description}"
+    if diff_summary:
+        summary += f"\n\n{diff_summary}"
 
     return EnrichedSeed(
         domain_id="coding",
@@ -96,6 +145,6 @@ def enrich_coding_seed(pr_url: str, github_token: str | None) -> EnrichedSeed:
             "is_test_included": is_test_included,
             "author_pr_history": author_pr_history,
             "linked_issue": linked_issue_num,
-            "ci_pass_rate": None,
+            "ci_pass_rate": ci_pass_rate,
         },
     )
