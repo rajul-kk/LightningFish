@@ -278,13 +278,30 @@ the apparatus to produce that number — the number itself is still pending. Unt
 it exists, treat Lightningfish as a **validated qualitative model, not a
 validated predictor.**
 
-Producing it requires a real model (haiku or better — 3B local models drop the
-format and mute the signal) and a `GITHUB_TOKEN` for a ~20+ event balanced pull:
+Producing it requires a capable model (a ≥ 7B local model or a frontier API
+model — 3B models drop the format and mute the signal) and, for a large enough
+sample, a `GITHUB_TOKEN`:
 
 ```bash
-GITHUB_TOKEN=... LIGHTNINGFISH_MODEL=claude-haiku-4-5-20251001 \
+GITHUB_TOKEN=... LIGHTNINGFISH_MODEL=ollama:qwen2.5:7b \
   python -m tests.integration.run_backtest coding pallets flask 24
 ```
+
+### Preliminary run (NOT a verdict — n=6)
+
+Two tokenless runs on `pallets/flask` with `qwen2.5:7b` (6 balanced PRs each):
+
+- **Parse health was clean** (no low-confidence runs) — qwen 7B follows the
+  format, so results are interpretable and the model is not the bottleneck.
+- **The sim scored ~50% (chance), below the naive tests/CI baseline's 67%**, and
+  did not beat the single-LLM baseline. One run collapsed to all-approve; the
+  other varied but still scored 50%.
+- `p ≈ 0.90` — with n=6 nothing is distinguishable from chance, so this is a
+  smoke test, not evidence. A ~24+ event run is needed for any real conclusion.
+
+Signal to chase if a larger run confirms it: the sim appears to drift toward
+approval regardless of PR quality, suggesting an archetype approve-bias or
+herding that flattens dissent rather than a modelling-capacity problem.
 
 ### How to read a run
 
