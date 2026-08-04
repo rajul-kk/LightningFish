@@ -299,9 +299,28 @@ Two tokenless runs on `pallets/flask` with `qwen2.5:7b` (6 balanced PRs each):
 - `p ≈ 0.90` — with n=6 nothing is distinguishable from chance, so this is a
   smoke test, not evidence. A ~24+ event run is needed for any real conclusion.
 
-Signal to chase if a larger run confirms it: the sim appears to drift toward
-approval regardless of PR quality, suggesting an archetype approve-bias or
-herding that flattens dissent rather than a modelling-capacity problem.
+### Diagnostic: the sim discriminates, but real seeds are thin
+
+A local good-vs-bad probe (two fixed synthetic PRs, qwen2.5:7b) shows the sim is
+**not** approve-biased and does **not** wash out:
+
+- clean, well-tested, CI-green bugfix → **+0.26 (approve)**, every archetype positive
+- huge, untested, CI-failing rewrite → **−0.26 (block)**, every archetype negative
+
+So the dynamics work when the seed carries signal. The chance-level backtest
+result is better explained by **thin seeds**, not broken dynamics:
+
+- `enrich_coding_seed` leaves `ci_pass_rate = None`, so **CIBot is neutralized**
+  during real-PR sims — the sim loses its strongest deterministic discriminator
+  (the synthetic probe above had CI status set explicitly).
+- A real PR seed (title, diff size, languages, tests-included, author history) is
+  almost the *same* signal the naive baseline already uses, so the sim has little
+  to add. The outcome hinges on things absent from the seed (the diff itself,
+  review discussion, maintainer follow-up).
+
+Highest-leverage fix for predictive power: enrich seeds with signal the naive
+baseline can't see — populate `ci_pass_rate` at enrich time, include the PR
+description and a diff summary, and the review conversation.
 
 ### How to read a run
 
