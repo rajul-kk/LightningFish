@@ -299,28 +299,51 @@ Two tokenless runs on `pallets/flask` with `qwen2.5:7b` (6 balanced PRs each):
 - `p ≈ 0.90` — with n=6 nothing is distinguishable from chance, so this is a
   smoke test, not evidence. A ~24+ event run is needed for any real conclusion.
 
-### Diagnostic: the sim discriminates, but real seeds are thin
+### Diagnostic: the sim discriminates on synthetic extremes, but shows a real
+    approve-bias on actual repo data
 
-A local good-vs-bad probe (two fixed synthetic PRs, qwen2.5:7b) shows the sim is
-**not** approve-biased and does **not** wash out:
+A local good-vs-bad probe (two fixed synthetic PRs, qwen2.5:7b) initially looked
+encouraging:
 
 - clean, well-tested, CI-green bugfix → **+0.26 (approve)**, every archetype positive
 - huge, untested, CI-failing rewrite → **−0.26 (block)**, every archetype negative
 
-So the dynamics work when the seed carries signal. The chance-level backtest
-result is better explained by **thin seeds**, not broken dynamics:
+That ruled out a trivial bug (the sim *can* reach a negative verdict) — but it
+does not generalize to real repo data, and later runs contradict the "thin
+seeds" theory this section previously proposed.
 
-- `enrich_coding_seed` leaves `ci_pass_rate = None`, so **CIBot is neutralized**
-  during real-PR sims — the sim loses its strongest deterministic discriminator
-  (the synthetic probe above had CI status set explicitly).
-- A real PR seed (title, diff size, languages, tests-included, author history) is
-  almost the *same* signal the naive baseline already uses, so the sim has little
-  to add. The outcome hinges on things absent from the seed (the diff itself,
-  review discussion, maintainer follow-up).
+**Seed enrichment was implemented** (`ci_pass_rate` populated at enrich time,
+un-neutralizing CIBot; PR description and a diff excerpt added to the summary —
+commit adding signal the naive baseline cannot see) and **did not change the
+outcome.** Across three separate `pallets/flask` backtest runs (pre-enrichment,
+post-enrichment, and post-enrichment with a naive-baseline bug fix — different
+PR samples each time), **the sim predicted "approve" on every single real PR: 17
+for 17.** That is not sampling noise — it is the sim structurally unable to
+reach a block verdict on real closed-PR data, in direct contrast to the
+synthetic probe.
 
-Highest-leverage fix for predictive power: enrich seeds with signal the naive
-baseline can't see — populate `ci_pass_rate` at enrich time, include the PR
-description and a diff summary, and the review conversation.
+Best current explanation: the synthetic BAD seed was a maximally negative case
+(0% CI, no tests, unreadable names, first-time contributor). Real closed-and-
+unmerged PRs are rarely that unambiguous — many are closed for reasons outside
+code quality (stale, superseded, out of scope), so the signal is much weaker
+than the synthetic extreme, and the archetype population's default disposition
+(deferential JuniorContributor majority, tolerant StyleMaintainability) tips
+toward approve absent a sharp red flag. This has not been confirmed by
+per-archetype inspection on real seeds — that is the next diagnostic, not yet run.
+
+**Also found and fixed in this investigation:** the naive baseline's original
+0.5/0.5 weighting of "tests included" vs "CI passing" could cancel to exactly 0
+whenever the two disagreed — invisible while `ci_pass_rate` was always `None`,
+but it silently collapsed naive accuracy from 67% to 33% the moment enrichment
+started populating it. Fixed to asymmetric 0.6/0.4 weights so the two signals
+can no longer tie.
+
+Open question, not yet resolvable without a larger sample (rate-limited to ~6
+events/hour unauthenticated during this investigation): is the approve-bias a
+population-mix issue (too few contrarian/high-resistance archetypes for coding)
+or a genuine reflection that real ambiguous PRs default toward approval? Next
+step: per-archetype breakdown on real (not synthetic) PR seeds, and a run at
+n=24+ with a `GITHUB_TOKEN`.
 
 ### How to read a run
 
