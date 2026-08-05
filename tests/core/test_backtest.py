@@ -196,6 +196,23 @@ def test_finance_baseline_and_truth_direction():
     assert a.truth_direction(GroundTruthRecord(data={"price_change_pct": -0.05})) == -1
 
 
+def test_coding_baseline_never_ties_when_signals_disagree():
+    # Regression: tests_included + failing CI (or the reverse) must not cancel
+    # to exactly 0 (sign(0) == 0, scored as wrong against an actual that's
+    # always +-1). An equal-weighted 0.5/0.5 split did exactly that once
+    # ci_pass_rate started being populated at enrich time.
+    from lightningfish_coding.config import CodingDomainAdapter
+    a = CodingDomainAdapter()
+
+    tests_but_failing_ci = _seed("x")
+    tests_but_failing_ci.metadata = {"is_test_included": True, "ci_pass_rate": 0.0}
+    assert sign(a.naive_prediction(tests_but_failing_ci)) != 0
+
+    no_tests_but_ci_passes = _seed("y")
+    no_tests_but_ci_passes.metadata = {"is_test_included": False, "ci_pass_rate": 1.0}
+    assert sign(a.naive_prediction(no_tests_but_ci_passes)) != 0
+
+
 def test_coding_baseline_and_truth_direction():
     from lightningfish_coding.config import CodingDomainAdapter
     a = CodingDomainAdapter()

@@ -100,11 +100,15 @@ class CodingDomainAdapter(DomainAdapter):
     def naive_prediction(self, seed: EnrichedSeed) -> float:
         # Content-free baseline: PRs that include tests (and, if known, pass CI)
         # tend to merge. This is what the simulation must beat.
+        # Weights are asymmetric (0.6/0.4) so the two signals can never cancel to
+        # exactly 0 when they disagree — an equal 0.5/0.5 split produced a tie
+        # (sign(0) == 0, scored as wrong against an actual that's always ±1) on
+        # every PR where "has tests" and "CI passing" disagreed.
         meta = seed.metadata
-        score = 0.5 if meta.get("is_test_included") else -0.5
+        score = 0.6 if meta.get("is_test_included") else -0.6
         ci = meta.get("ci_pass_rate")
         if ci is not None:
-            score += 0.5 if ci >= 0.5 else -0.5
+            score += 0.4 if ci >= 0.5 else -0.4
         return max(-1.0, min(1.0, score))
 
     def truth_direction(self, truth: GroundTruthRecord) -> int:
