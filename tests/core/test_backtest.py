@@ -167,6 +167,18 @@ def test_events_without_truth_or_direction_are_skipped():
     assert report.skipped == 2
 
 
+def test_archetype_config_is_forwarded_to_build_personas():
+    table = {"e1": (1, 0.0, True)}
+    adapter = _StubAdapter(table)
+    adapter.build_personas = MagicMock(return_value=[])  # type: ignore[method-assign]
+    engine = _engine_returning({"e1": 0.5})
+    events = [BacktestEvent("e1", _seed("e1"))]
+
+    run_backtest(adapter, engine, events, n_agents=7, n_rounds=1,
+                archetype_config={"ArchA": 1.0})
+    adapter.build_personas.assert_called_once_with(7, {"ArchA": 1.0})
+
+
 def test_llm_baseline_uses_provider_direction():
     from lightningfish_core.backtest import llm_baseline
 

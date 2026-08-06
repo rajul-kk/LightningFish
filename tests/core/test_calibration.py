@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 from lightningfish_core.adapter import DomainAdapter
 from lightningfish_core.backtest import BacktestEvent
-from lightningfish_core.calibration import grid_search
+from lightningfish_core.calibration import grid_search, sweep_population
 from lightningfish_core.models import (
     BacktestResult,
     EnrichedSeed,
@@ -81,3 +81,34 @@ def test_grid_search_covers_full_product():
         adapter, events, grid, engine_factory=_factory(0.3), n_agents=1, n_rounds=1,
     )
     assert len(result.all_results) == 6  # 2 x 3 combinations
+
+
+def test_sweep_population_forwards_archetype_config_and_picks_best():
+    adapter = _StubAdapter()
+    events = [
+        BacktestEvent("e1", _seed("e1", 1)),
+        BacktestEvent("e2", _seed("e2", -1)),
+    ]
+    engine = MagicMock()
+    seen_configs = []
+
+    def run(seed, agents, n_rounds):
+        val = 0.5 * seed.metadata["actual"]
+        return SimulationResult(
+            seed=seed, trajectory=[0.0, val], round_events=[],
+            final_distribution=[], total_tier1_calls=0, total_cost_usd=0.0,
+        )
+    engine.run.side_effect = run
+
+    def build_personas(n, archetype_config=None):
+        seen_configs.append(archetype_config)
+        return []
+    adapter.build_personas = build_personas  # type: ignore[method-assign]
+
+    configs = {"default": {"A": 1.0}, "alt": {"B": 1.0}}
+    result = sweep_population(adapter, engine, events, configs, n_agents=1, n_rounds=1)
+
+    assert {"A": 1.0} in seen_configs
+    assert {"B": 1.0} in seen_configs
+    assert result.best_report.sim_accuracy == 1.0
+    assert len(result.all_results) == 2

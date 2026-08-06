@@ -105,6 +105,7 @@ def run_backtest(
     n_agents: int = 100,
     n_rounds: int = 8,
     baselines: dict[str, Callable[[BacktestEvent], int]] | None = None,
+    archetype_config: dict[str, float] | None = None,
 ) -> BacktestReport:
     """
     Run every event through the engine and score sim vs baselines vs truth.
@@ -112,6 +113,10 @@ def run_backtest(
     Events whose ground truth is unavailable, or whose actual outcome has no
     direction (a flat price move / unresolved PR), are skipped rather than
     scored as wrong — they carry no signal to predict.
+
+    ``archetype_config`` overrides the domain's default population mix (passed
+    through to ``adapter.build_personas``), letting a caller test whether a
+    different archetype balance changes backtest accuracy.
     """
     if baselines is None:
         baselines = {"naive": _naive_baseline(adapter)}
@@ -131,7 +136,7 @@ def run_backtest(
             skipped += 1
             continue
 
-        agents = adapter.build_personas(n_agents)
+        agents = adapter.build_personas(n_agents, archetype_config)
         result = engine.run(event.seed, agents, n_rounds=n_rounds)
         sim_dir = sign(result.trajectory[-1]) if result.trajectory else 0
         parse_rates.append(result.mean_parse_success_rate)

@@ -24,6 +24,13 @@ class CalibrationResult:
     all_results: list[tuple[dict[str, float], BacktestReport]]
 
 
+@dataclass
+class PopulationSweepResult:
+    best_config_name: str
+    best_report: BacktestReport
+    all_results: list[tuple[str, BacktestReport]]
+
+
 def grid_search(
     adapter: DomainAdapter,
     events: list[BacktestEvent],
@@ -54,6 +61,39 @@ def grid_search(
     )
     return CalibrationResult(
         best_params=best_params,
+        best_report=best_report,
+        all_results=results,
+    )
+
+
+def sweep_population(
+    adapter: DomainAdapter,
+    engine: SimulationEngine,
+    events: list[BacktestEvent],
+    configs: dict[str, dict[str, float]],
+    n_agents: int = 100,
+    n_rounds: int = 8,
+    baselines: dict[str, Callable[[BacktestEvent], int]] | None = None,
+) -> PopulationSweepResult:
+    """
+    Score named archetype population mixes (e.g. "default", "no_juniors")
+    against backtest accuracy with engine dynamics held fixed, to test whether
+    an aggregate bias (e.g. always predicting approve) traces to population mix
+    rather than the per-agent dynamics. Each value in ``configs`` is an
+    archetype_config dict as accepted by DomainAdapter.build_personas.
+    """
+    results: list[tuple[str, BacktestReport]] = []
+    for name, archetype_config in configs.items():
+        report = run_backtest(adapter, engine, events, n_agents=n_agents,
+                              n_rounds=n_rounds, baselines=baselines,
+                              archetype_config=archetype_config)
+        results.append((name, report))
+
+    best_name, best_report = max(
+        results, key=lambda nr: (nr[1].sim_accuracy, -nr[1].p_value_vs_best)
+    )
+    return PopulationSweepResult(
+        best_config_name=best_name,
         best_report=best_report,
         all_results=results,
     )
