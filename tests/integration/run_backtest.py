@@ -11,6 +11,10 @@ list of (ticker, date, headline); edit or extend as needed:
 
 Model is controlled via LIGHTNINGFISH_MODEL (default: claude-haiku-4-5-20251001;
 use ollama:llama3.2 for a free local run, though small models weaken the sim).
+
+Ground truth (and, for coding, the pulled PR list) is cached to .cache/lightningfish/
+so repeated runs against the same events don't re-spend API rate limit. Set
+LIGHTNINGFISH_NO_CACHE=1 to force a fresh pull.
 """
 from __future__ import annotations
 
@@ -28,6 +32,9 @@ from lightningfish_core.backtest import (
     sign,
 )
 from lightningfish_core.engine import SimulationEngine
+from lightningfish_core.event_cache import CachingAdapter, EventCache, cached_pull_events
+
+_NO_CACHE = os.environ.get("LIGHTNINGFISH_NO_CACHE") == "1"
 
 
 def _baselines(adapter, engine):
@@ -82,11 +89,22 @@ def _run_coding(args: list[str]) -> None:
         print("Note: GITHUB_TOKEN not set — using unauthenticated GitHub API "
               "(60 req/hr; keep limit small, ~8 PRs).")
 
-    print(f"Pulling up to {limit} closed PRs from {owner}/{repo}...")
-    events = pull_pr_events(owner, repo, token, limit=limit)
+    adapter = CodingDomainAdapter()
+    list_key = f"coding:{owner}/{repo}:{limit}"
+
+    if _NO_CACHE:
+        print(f"Pulling up to {limit} closed PRs from {owner}/{repo}... (cache disabled)")
+        events = pull_pr_events(owner, repo, token, limit=limit)
+    else:
+        cache = EventCache(f"{owner}_{repo}")
+        adapter = CachingAdapter(adapter, cache)
+        events = cached_pull_events(
+            cache, list_key, lambda: pull_pr_events(owner, repo, token, limit=limit)
+        )
+        print(f"Pulling up to {limit} closed PRs from {owner}/{repo}... "
+              f"(cache: {len(cache)} entries on disk)")
     print(f"  got {len(events)} events")
 
-    adapter = CodingDomainAdapter()
     model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
     engine = SimulationEngine(adapter, model=model)
     n_agents, n_rounds = _sim_size(60, 6)
@@ -107,6 +125,8 @@ def _run_finance() -> None:
     print(f"  got {len(events)} events")
 
     adapter = FinanceDomainAdapter()
+    if not _NO_CACHE:
+        adapter = CachingAdapter(adapter, EventCache("finance_events"))  # type: ignore[assignment]
     model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
     engine = SimulationEngine(adapter, model=model)
     n_agents, n_rounds = _sim_size(100, 8)

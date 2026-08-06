@@ -7,6 +7,10 @@ Sweeps global_herd_weight and momentum_weight and prints the best setting by
 backtest accuracy. Uses the same public-repo, class-balanced PR pull as the
 backtest CLI. Model via LIGHTNINGFISH_MODEL (default haiku; ollama:llama3.2 free).
 Only meaningful with a real model and a reasonably large, balanced event set.
+
+Each grid point re-runs the full backtest, so ground truth is cached to
+.cache/lightningfish/ (shared with the backtest CLI) — the PR list and each
+event's ground truth are fetched once regardless of grid size.
 """
 from __future__ import annotations
 
@@ -19,6 +23,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 
 from lightningfish_core.calibration import grid_search
 from lightningfish_core.engine import SimulationEngine
+from lightningfish_core.event_cache import CachingAdapter, EventCache, cached_pull_events
 
 _GRID = {
     "global_herd_weight": [0.2, 0.3, 0.4],
@@ -41,11 +46,16 @@ def main() -> None:
     n_agents = int(os.environ.get("LIGHTNINGFISH_N_AGENTS", 40))
     n_rounds = int(os.environ.get("LIGHTNINGFISH_N_ROUNDS", 5))
 
-    print(f"Pulling up to {limit} balanced closed PRs from {owner}/{repo}...")
-    events = pull_pr_events(owner, repo, token, limit=limit)
-    print(f"  got {len(events)} events\n")
-
     adapter = CodingDomainAdapter()
+    cache = EventCache(f"{owner}_{repo}")
+    adapter = CachingAdapter(adapter, cache)
+    list_key = f"coding:{owner}/{repo}:{limit}"
+    events = cached_pull_events(
+        cache, list_key, lambda: pull_pr_events(owner, repo, token, limit=limit)
+    )
+    print(f"Pulling up to {limit} balanced closed PRs from {owner}/{repo}... "
+          f"(cache: {len(cache)} entries on disk)")
+    print(f"  got {len(events)} events\n")
 
     def factory(params: dict) -> SimulationEngine:
         return SimulationEngine(
