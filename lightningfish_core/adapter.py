@@ -48,6 +48,15 @@ class DomainAdapter(ABC):
         """
         return 0
 
+    def cache_key(self, seed: EnrichedSeed) -> str | None:
+        """
+        A stable identifier for this seed's underlying real-world event (e.g.
+        "owner/repo#123"), used to cache ground truth and avoid re-spending
+        external API rate limit on repeated backtest/calibration runs against
+        the same events. Return None to disable caching (the default).
+        """
+        return None
+
     def baseline_llm_prompt(self, seed: EnrichedSeed) -> str:
         """
         One-shot prompt for the 'single_llm' backtest baseline: ask the model

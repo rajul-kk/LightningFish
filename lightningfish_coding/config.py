@@ -97,6 +97,12 @@ class CodingDomainAdapter(DomainAdapter):
             f"-0.7"
         )
 
+    def cache_key(self, seed: EnrichedSeed) -> str | None:
+        meta = seed.metadata
+        if not all(k in meta for k in ("owner", "repo", "pr_number")):
+            return None
+        return f"{meta['owner']}/{meta['repo']}#{meta['pr_number']}"
+
     def naive_prediction(self, seed: EnrichedSeed) -> float:
         # Content-free baseline: PRs that include tests (and, if known, pass CI)
         # tend to merge. This is what the simulation must beat.

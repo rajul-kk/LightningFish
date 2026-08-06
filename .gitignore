@@ -38,3 +38,6 @@ Thumbs.db
 
 # Docs / plans / specs
 docs/
+
+# Local backtest event cache
+.cache/

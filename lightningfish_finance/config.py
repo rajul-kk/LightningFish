@@ -103,6 +103,11 @@ class FinanceDomainAdapter(DomainAdapter):
             f"0.45"
         )
 
+    def cache_key(self, seed: EnrichedSeed) -> str | None:
+        ticker = seed.metadata.get("ticker")
+        filing_date = seed.metadata.get("filing_date")
+        return f"{ticker}@{filing_date}" if ticker and filing_date else None
+
     def naive_prediction(self, seed: EnrichedSeed) -> float:
         # Content-free baseline: net sentiment of positive vs negative keywords
         # in the event summary. This is what the simulation must beat.
