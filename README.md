@@ -160,10 +160,23 @@ python -m tests.integration.run_backtest finance
 python -m tests.integration.run_calibration pallets flask 20
 ```
 
-Cheap local runs: prefix with `LIGHTNINGFISH_MODEL=ollama:llama3.2` and shrink
-the sim with `LIGHTNINGFISH_N_AGENTS` / `LIGHTNINGFISH_N_ROUNDS`. Small models
-weaken the signal (watch the `low_confidence` flag) — use a real model for
-trustworthy numbers.
+Cheap local runs: prefix with `LIGHTNINGFISH_MODEL=ollama:qwen2.5:7b` (llama3.2
+3B is too weak — drops the structured format) and shrink the sim with
+`LIGHTNINGFISH_N_AGENTS` / `LIGHTNINGFISH_N_ROUNDS`. Watch the `low_confidence`
+flag — a run dominated by parse failures isn't trustworthy regardless of model.
+
+Ground truth (and, for coding, the pulled PR list) is cached to
+`.cache/lightningfish/` so repeated runs against the same events don't re-spend
+API rate limit — set `LIGHTNINGFISH_NO_CACHE=1` to force a fresh pull. Once a
+repo is cached, two offline diagnostics need no further network calls:
+
+```bash
+# Per-archetype opinion breakdown on each cached PR
+python -m tests.integration.run_archetype_breakdown pallets flask
+
+# Does a different archetype population mix change accuracy?
+python -m tests.integration.run_population_sweep pallets flask
+```
 
 ---
 

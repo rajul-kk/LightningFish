@@ -299,8 +299,8 @@ Two tokenless runs on `pallets/flask` with `qwen2.5:7b` (6 balanced PRs each):
 - `p ≈ 0.90` — with n=6 nothing is distinguishable from chance, so this is a
   smoke test, not evidence. A ~24+ event run is needed for any real conclusion.
 
-### Diagnostic: the sim discriminates on synthetic extremes, but shows a real
-    approve-bias on actual repo data
+### Diagnostic: the sim discriminates on synthetic extremes, but real PR seeds
+    lack the signal that determines real outcomes
 
 A local good-vs-bad probe (two fixed synthetic PRs, qwen2.5:7b) initially looked
 encouraging:
@@ -322,14 +322,41 @@ for 17.** That is not sampling noise — it is the sim structurally unable to
 reach a block verdict on real closed-PR data, in direct contrast to the
 synthetic probe.
 
-Best current explanation: the synthetic BAD seed was a maximally negative case
-(0% CI, no tests, unreadable names, first-time contributor). Real closed-and-
-unmerged PRs are rarely that unambiguous — many are closed for reasons outside
-code quality (stale, superseded, out of scope), so the signal is much weaker
-than the synthetic extreme, and the archetype population's default disposition
-(deferential JuniorContributor majority, tolerant StyleMaintainability) tips
-toward approve absent a sharp red flag. This has not been confirmed by
-per-archetype inspection on real seeds — that is the next diagnostic, not yet run.
+A 4th independent `pallets/flask` run (a local event cache — see below — was
+built specifically so this investigation could iterate without repeatedly
+spending GitHub's unauthenticated rate limit) made it 23 approve-predictions
+out of 23 real PRs across four separate runs.
+
+**Root cause — resolved via two offline diagnostics, not a population-mix
+issue:**
+
+1. **Per-archetype breakdown** on all 6 cached real PRs
+   (`run_archetype_breakdown.py`) showed **every archetype, including
+   SecurityReviewer (contrarian_tendency=0.60) and DomainExpertMaintainer
+   (contrarian_tendency=0.50, highest resistance)**, landing approve on nearly
+   every PR — not just the compliant majority. The one exception
+   (DomainExpertMaintainer, −0.06 on #6013) was on a PR that *did* merge.
+   **CIBot alone is the tell**: it scored +0.86 to +1.0 (CI ~93–100% passing)
+   on all 6 PRs — including the 3 that were closed *without* merging. The CI
+   signal genuinely does not distinguish these outcomes.
+2. **Population sweep** (`sweep_population` / `run_population_sweep.py`)
+   confirmed it: `default`, `critical` (Security/Performance/DomainExpert
+   overweighted), `juniors_only`, and `experts_only` (100%
+   SecurityReviewer + DomainExpertMaintainer — the two most skeptical,
+   highest-resistance archetypes) **all scored identically (50%, same
+   approve-on-everything pattern)**. Rebalancing the population cannot fix
+   this, because it was never a population problem.
+
+**Conclusion:** the seed genuinely lacks the signal that determined these real
+outcomes. Real closed-and-unmerged PRs on a mature repo are not rejected for
+poor code quality visible in CI/tests/diff size — they're closed for reasons
+outside the seed entirely (maintainer bandwidth, superseded by another PR, out
+of scope, staleness). Every archetype, however skeptical, reasonably reads
+"CI passing, tests included, reasonable diff" as approve-favorable, because it
+is — the dynamics are not broken, the available signal simply does not predict
+the outcome. Fixing this needs seed content that exists *outside* what GitHub's
+PR metadata API exposes (e.g. the actual review thread, or an explicit
+"why was this closed" signal) — not further engine or population tuning.
 
 **Also found and fixed in this investigation:** the naive baseline's original
 0.5/0.5 weighting of "tests included" vs "CI passing" could cancel to exactly 0
@@ -338,12 +365,14 @@ but it silently collapsed naive accuracy from 67% to 33% the moment enrichment
 started populating it. Fixed to asymmetric 0.6/0.4 weights so the two signals
 can no longer tie.
 
-Open question, not yet resolvable without a larger sample (rate-limited to ~6
-events/hour unauthenticated during this investigation): is the approve-bias a
-population-mix issue (too few contrarian/high-resistance archetypes for coding)
-or a genuine reflection that real ambiguous PRs default toward approval? Next
-step: per-archetype breakdown on real (not synthetic) PR seeds, and a run at
-n=24+ with a `GITHUB_TOKEN`.
+**Infra built during this investigation** (all in `lightningfish_core/`,
+offline after the first fetch): `EventCache`/`CachingAdapter`
+(`event_cache.py`) cache enriched seeds + ground truth by
+`adapter.cache_key()`, wired into both the backtest and calibration CLIs, so
+iterating on a diagnosis no longer re-spends GitHub API budget. Built on top:
+an offline per-archetype breakdown CLI and a population-mix sweep
+(`sweep_population`), both usable on any cached repo with zero further network
+calls.
 
 ### How to read a run
 
