@@ -156,6 +156,10 @@ python -m tests.integration.run_backtest coding pallets flask 20
 # Finance — (ticker, date, headline) events scored against the price move
 python -m tests.integration.run_backtest finance
 
+# Hacker News — class-balanced settled stories, scored on both points and
+# num_comments (tokenless works; free 10,000 req/hr, no GITHUB_TOKEN needed)
+python -m tests.integration.run_backtest hn 20
+
 # Calibrate engine params against backtest accuracy
 python -m tests.integration.run_calibration pallets flask 20
 ```

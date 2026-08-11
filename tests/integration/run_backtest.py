@@ -9,12 +9,20 @@ lightningfish_finance.backtest_events caveat). Events come from a small built-in
 list of (ticker, date, headline); edit or extend as needed:
     python -m tests.integration.run_backtest finance
 
+Hacker News (fully programmatic, objective, free unauthenticated API):
+    python -m tests.integration.run_backtest hn [limit]
+
+Runs BOTH a points-direction (reception/virality) and a num_comments-direction
+(engagement) backtest against the SAME simulated events — one simulation per
+event, scored twice via score_precomputed(). See
+specs/2026-08-09-hn-sentiment-domain-design.md.
+
 Model is controlled via LIGHTNINGFISH_MODEL (default: claude-haiku-4-5-20251001;
 use ollama:llama3.2 for a free local run, though small models weaken the sim).
 
-Ground truth (and, for coding, the pulled PR list) is cached to .cache/lightningfish/
-so repeated runs against the same events don't re-spend API rate limit. Set
-LIGHTNINGFISH_NO_CACHE=1 to force a fresh pull.
+Ground truth (and, for coding/hn, the pulled event list) is cached to
+.cache/lightningfish/ so repeated runs against the same events don't re-spend
+API rate limit. Set LIGHTNINGFISH_NO_CACHE=1 to force a fresh pull.
 """
 from __future__ import annotations
 
@@ -29,6 +37,7 @@ from lightningfish_core.backtest import (
     BacktestReport,
     llm_baseline,
     run_backtest,
+    score_precomputed,
     sign,
 )
 from lightningfish_core.engine import SimulationEngine
@@ -135,14 +144,61 @@ def _run_finance() -> None:
     _print_report("finance", report)
 
 
+def _run_hn(args: list[str]) -> None:
+    from lightningfish_hn.backtest_events import pull_hn_events
+    from lightningfish_hn.config import HNCommentsAdapter, HNDomainAdapter
+
+    limit = int(args[0]) if args else 20
+    points_adapter = HNDomainAdapter()
+    comments_adapter = HNCommentsAdapter()
+    list_key = f"hn:points:{limit}"
+
+    if _NO_CACHE:
+        print(f"Pulling up to {limit} class-balanced HN stories (by points)... (cache disabled)")
+        events = pull_hn_events(metric="points", limit=limit)
+    else:
+        cache = EventCache("hn_stories")
+        points_adapter = CachingAdapter(points_adapter, cache)  # type: ignore[assignment]
+        comments_adapter = CachingAdapter(comments_adapter, cache)  # type: ignore[assignment]
+        events = cached_pull_events(
+            cache, list_key, lambda: pull_hn_events(metric="points", limit=limit)
+        )
+        print(f"Pulling up to {limit} class-balanced HN stories (by points)... "
+              f"(cache: {len(cache)} entries on disk)")
+    print(f"  got {len(events)} events")
+
+    model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
+    engine = SimulationEngine(points_adapter, model=model)
+    n_agents, n_rounds = _sim_size(60, 6)
+
+    # Simulate each event once (the expensive step) — score it twice (cheap),
+    # once per ground-truth axis. See "Backtest integration" in
+    # specs/2026-08-09-hn-sentiment-domain-design.md. Note: the single_llm
+    # baseline is still called once per adapter (twice total) since it isn't
+    # part of the expensive simulation loop — an accepted, minor v1 cost.
+    pairs = []
+    for event in events:
+        agents = points_adapter.build_personas(n_agents)
+        result = engine.run(event.seed, agents, n_rounds=n_rounds)
+        pairs.append((event, result))
+
+    points_report = score_precomputed(points_adapter, pairs, baselines=_baselines(points_adapter, engine))
+    comments_report = score_precomputed(comments_adapter, pairs, baselines=_baselines(comments_adapter, engine))
+
+    _print_report("hn (points / reception)", points_report)
+    _print_report("hn (num_comments / engagement)", comments_report)
+
+
 def main() -> None:
-    if len(sys.argv) < 2 or sys.argv[1] not in ("coding", "finance"):
+    if len(sys.argv) < 2 or sys.argv[1] not in ("coding", "finance", "hn"):
         print(__doc__)
         sys.exit(0)
     if sys.argv[1] == "coding":
         _run_coding(sys.argv[2:])
-    else:
+    elif sys.argv[1] == "finance":
         _run_finance()
+    else:
+        _run_hn(sys.argv[2:])
 
 
 if __name__ == "__main__":
