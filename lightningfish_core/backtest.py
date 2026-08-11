@@ -22,7 +22,7 @@ from scipy.stats import binomtest
 
 from .adapter import DomainAdapter
 from .engine import SimulationEngine
-from .models import EnrichedSeed
+from .models import EnrichedSeed, SimulationResult
 
 
 def sign(x: float) -> int:
@@ -98,35 +98,20 @@ def llm_baseline(adapter: DomainAdapter, engine: SimulationEngine) -> Callable[[
     return predict
 
 
-def run_backtest(
+def _score_outcomes(
+    pairs: list[tuple[BacktestEvent, SimulationResult]],
     adapter: DomainAdapter,
-    engine: SimulationEngine,
-    events: list[BacktestEvent],
-    n_agents: int = 100,
-    n_rounds: int = 8,
-    baselines: dict[str, Callable[[BacktestEvent], int]] | None = None,
-    archetype_config: dict[str, float] | None = None,
+    baselines: dict[str, Callable[[BacktestEvent], int]],
 ) -> BacktestReport:
-    """
-    Run every event through the engine and score sim vs baselines vs truth.
-
-    Events whose ground truth is unavailable, or whose actual outcome has no
-    direction (a flat price move / unresolved PR), are skipped rather than
-    scored as wrong — they carry no signal to predict.
-
-    ``archetype_config`` overrides the domain's default population mix (passed
-    through to ``adapter.build_personas``), letting a caller test whether a
-    different archetype balance changes backtest accuracy.
-    """
-    if baselines is None:
-        baselines = {"naive": _naive_baseline(adapter)}
-
+    """Shared scoring tail for run_backtest and score_precomputed: given
+    (event, SimulationResult) pairs already simulated, fetch ground truth and
+    compute the report."""
     outcomes: list[EventOutcome] = []
     skipped = 0
     parse_rates: list[float] = []
     low_conf_events = 0
 
-    for event in events:
+    for event, result in pairs:
         truth = adapter.get_ground_truth(event.seed)
         if truth is None:
             skipped += 1
@@ -136,8 +121,6 @@ def run_backtest(
             skipped += 1
             continue
 
-        agents = adapter.build_personas(n_agents, archetype_config)
-        result = engine.run(event.seed, agents, n_rounds=n_rounds)
         sim_dir = sign(result.trajectory[-1]) if result.trajectory else 0
         parse_rates.append(result.mean_parse_success_rate)
         if result.low_confidence:
@@ -187,3 +170,53 @@ def run_backtest(
         outcomes=outcomes,
         skipped=skipped,
     )
+
+
+def run_backtest(
+    adapter: DomainAdapter,
+    engine: SimulationEngine,
+    events: list[BacktestEvent],
+    n_agents: int = 100,
+    n_rounds: int = 8,
+    baselines: dict[str, Callable[[BacktestEvent], int]] | None = None,
+    archetype_config: dict[str, float] | None = None,
+) -> BacktestReport:
+    """
+    Run every event through the engine and score sim vs baselines vs truth.
+
+    Events whose ground truth is unavailable, or whose actual outcome has no
+    direction (a flat price move / unresolved PR), are skipped rather than
+    scored as wrong — they carry no signal to predict.
+
+    ``archetype_config`` overrides the domain's default population mix (passed
+    through to ``adapter.build_personas``), letting a caller test whether a
+    different archetype balance changes backtest accuracy.
+    """
+    if baselines is None:
+        baselines = {"naive": _naive_baseline(adapter)}
+
+    pairs: list[tuple[BacktestEvent, SimulationResult]] = []
+    for event in events:
+        agents = adapter.build_personas(n_agents, archetype_config)
+        result = engine.run(event.seed, agents, n_rounds=n_rounds)
+        pairs.append((event, result))
+
+    return _score_outcomes(pairs, adapter, baselines)
+
+
+def score_precomputed(
+    adapter: DomainAdapter,
+    results: list[tuple[BacktestEvent, SimulationResult]],
+    baselines: dict[str, Callable[[BacktestEvent], int]] | None = None,
+) -> BacktestReport:
+    """
+    Score already-simulated (event, SimulationResult) pairs against
+    ``adapter``'s ground truth, without re-running the simulation. For reusing
+    one expensive simulation across multiple differently-scored backtests —
+    e.g. the same trajectory judged by two different ground-truth axes (see
+    the HN domain's points-vs-comments backtests) — without paying to
+    simulate twice.
+    """
+    if baselines is None:
+        baselines = {"naive": _naive_baseline(adapter)}
+    return _score_outcomes(results, adapter, baselines)

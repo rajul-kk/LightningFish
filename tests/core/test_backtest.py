@@ -195,6 +195,44 @@ def test_llm_baseline_uses_provider_direction():
     assert report.outcomes[0].baseline_directions["single_llm"] == 1
 
 
+def test_score_precomputed_matches_run_backtest_for_same_inputs():
+    from lightningfish_core.backtest import score_precomputed
+
+    table = {"e1": (1, -1.0, True), "e2": (-1, 1.0, True)}
+    adapter = _StubAdapter(table)
+    engine = _engine_returning({"e1": 0.5, "e2": -0.5})
+    events = [BacktestEvent("e1", _seed("e1")), BacktestEvent("e2", _seed("e2"))]
+
+    via_run_backtest = run_backtest(adapter, engine, events, n_agents=1, n_rounds=1)
+
+    # Build the same (event, SimulationResult) pairs manually, as an HN-style
+    # caller reusing one simulation across two scorings would.
+    pairs = []
+    for event in events:
+        agents = adapter.build_personas(1, None)
+        result = engine.run(event.seed, agents, n_rounds=1)
+        pairs.append((event, result))
+    via_precomputed = score_precomputed(adapter, pairs)
+
+    assert via_precomputed.sim_accuracy == via_run_backtest.sim_accuracy
+    assert via_precomputed.n_events == via_run_backtest.n_events
+
+
+def test_score_precomputed_does_not_call_engine():
+    from lightningfish_core.backtest import score_precomputed
+
+    table = {"e1": (1, 0.0, True)}
+    adapter = _StubAdapter(table)
+    events = [BacktestEvent("e1", _seed("e1"))]
+    result = SimulationResult(
+        seed=events[0].seed, trajectory=[0.0, 0.5], round_events=[],
+        final_distribution=[], total_tier1_calls=0, total_cost_usd=0.0,
+    )
+    report = score_precomputed(adapter, [(events[0], result)])
+    assert report.n_events == 1
+    assert report.sim_accuracy == 1.0
+
+
 def test_finance_baseline_and_truth_direction():
     from lightningfish_finance.config import FinanceDomainAdapter
     a = FinanceDomainAdapter()
