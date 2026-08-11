@@ -34,9 +34,10 @@ dev = [
 [project.entry-points."lightningfish.domains"]
 finance = "lightningfish_finance:adapter"
 coding = "lightningfish_coding:adapter"
+hn = "lightningfish_hn:adapter"
 
 [tool.hatch.build.targets.wheel]
-packages = ["lightningfish_core", "lightningfish_finance", "lightningfish_coding"]
+packages = ["lightningfish_core", "lightningfish_finance", "lightningfish_coding", "lightningfish_hn"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
