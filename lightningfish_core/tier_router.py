@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import random
+
 from .models import AgentPersona
 from .rule_agent import RuleBasedAgent
 
@@ -70,8 +72,13 @@ class TierRouter:
             and a.unique_id not in settled_ids
             and a.unique_id not in t1_ids
         ]
+        # Random, not eligible_t2[:max_t2]: a plain slice silently favored
+        # whichever archetype happened to be listed first when personas were
+        # built, every round, for the whole run — a systematic bias with no
+        # relation to actual uncertainty. See test_t2_selection_is_not_biased_
+        # by_construction_order.
         max_t2 = max(1, int(len(agents) * MAX_T2_FRACTION))
-        t2 = eligible_t2[:max_t2]
+        t2 = random.sample(eligible_t2, min(max_t2, len(eligible_t2)))
         t2_ids = {a.unique_id for a in t2}
 
         # T3: everyone else

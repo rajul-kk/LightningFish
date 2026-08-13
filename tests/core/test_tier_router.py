@@ -85,6 +85,31 @@ def test_settled_agents_go_to_t3():
     assert agents[0].unique_id in t3_ids
 
 
+def test_t2_selection_is_not_biased_by_construction_order():
+    # Regression: eligible_t2[:max_t2] silently favored whichever archetype was
+    # listed first in the agents list (i.e. first in a domain's persona config),
+    # every round, for the whole simulation — not a random or representative
+    # sample. 40 agents of archetype "First" followed by 40 of "Second", all
+    # equally eligible for T2; over many independent routings the two
+    # archetypes should get roughly equal representation, not "First" always
+    # winning every slot.
+    router = TierRouter()
+    agents = (
+        [_persona(0.3, opinion=0.05, archetype="First") for _ in range(40)]
+        + [_persona(0.3, opinion=0.05, archetype="Second") for _ in range(40)]
+    )
+    first_count = 0
+    second_count = 0
+    for _ in range(30):
+        result = router.route(agents, settled_ids=set(), round_number=1)
+        for a in result["t2"]:
+            if a.archetype == "First":
+                first_count += 1
+            else:
+                second_count += 1
+    assert second_count > 0, "Second' archetype never got a single T2 slot across 30 routings"
+
+
 def test_t2_capped_at_20_percent():
     router = TierRouter()
     agents = [_persona(0.3, opinion=0.05) for _ in range(100)]
