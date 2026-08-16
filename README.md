@@ -12,6 +12,7 @@ Built from scratch, inspired by [OASIS](https://github.com/camel-ai/oasis) and M
 lightningfish_core/       Domain-agnostic engine (models, SimulationEngine, TierRouter, registry)
 lightningfish_finance/    7 investor archetypes + SEC EDGAR seed enricher + Reddit ground truth
 lightningfish_coding/     6 reviewer archetypes + CIBot + GitHub PR seed enricher
+lightningfish_hn/         6 HN archetypes + Algolia seed enricher + points/comments ground truth
 lightningfish_service/    FastAPI service (runs locally or on Modal)
 lightningfish_web/        Next.js 15 frontend (deploys to Vercel)
 ```
@@ -175,11 +176,13 @@ API rate limit — set `LIGHTNINGFISH_NO_CACHE=1` to force a fresh pull. Once a
 repo is cached, two offline diagnostics need no further network calls:
 
 ```bash
-# Per-archetype opinion breakdown on each cached PR
-python -m tests.integration.run_archetype_breakdown pallets flask
+# Per-archetype opinion breakdown on each cached event
+python -m tests.integration.run_archetype_breakdown coding pallets flask
+python -m tests.integration.run_archetype_breakdown hn
 
 # Does a different archetype population mix change accuracy?
-python -m tests.integration.run_population_sweep pallets flask
+python -m tests.integration.run_population_sweep coding pallets flask
+python -m tests.integration.run_population_sweep hn
 ```
 
 ---
@@ -187,7 +190,7 @@ python -m tests.integration.run_population_sweep pallets flask
 ## Tests
 
 ```bash
-python -m pytest -q          # 157 tests, ~7s
+python -m pytest -q          # 193 tests, ~18s
 ```
 
 ---
@@ -218,6 +221,17 @@ python -m pytest -q          # 157 tests, ~7s
 | DomainExpertMaintainer | 8% | Highest influence, domain ownership |
 
 All proportions are configurable in the simulation form.
+
+### Hacker News
+
+| Archetype | Default % | Character |
+|---|---|---|
+| CasualLurkerVoter | 30% | Low-conviction upvoter, moderate herding |
+| EarlyAdopterHypeBeast | 18% | Low resistance, high recency bias, amplifies |
+| ContrarianSkeptic | 15% | High resistance, contrarian, anti-herds |
+| DomainExpertPedant | 15% | High resistance and influence, technical focus |
+| GreybeardCynic | 12% | Highest resistance, strongly contrarian, anti-herds |
+| ShowHNFounder | 10% | Low resistance, high recency bias, amplifies |
 
 ---
 

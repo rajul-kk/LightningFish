@@ -11,18 +11,19 @@ For setup and deployment see [README.md](README.md).
 Lightningfish simulates how a population of heterogeneous agents forms (or fails
 to form) consensus about an event — a market-moving headline, a GitHub PR — over
 a series of rounds. Each agent holds an **opinion** in `[-1, +1]` (the poles are
-domain-specific: bearish/bullish, block/approve).
+domain-specific: bearish/bullish, block/approve, flop/viral).
 
 The design goal is realistic social dynamics at low cost: only a small fraction
 of agents call the LLM each round; the rest update through cheap deterministic
-math. The engine is **domain-agnostic** — finance and coding are plugins behind a
-`DomainAdapter` interface, and `lightningfish_core` contains no domain strings
-(enforced by a test).
+math. The engine is **domain-agnostic** — finance, coding, and Hacker News are
+plugins behind a `DomainAdapter` interface, and `lightningfish_core` contains no
+domain strings (enforced by a test).
 
 ```
 lightningfish_core/     Engine, models, tiers, metrics, backtest, calibration
 lightningfish_finance/  7 investor archetypes + yfinance/Reddit data
 lightningfish_coding/   6 reviewer archetypes + CIBot + GitHub data
+lightningfish_hn/       6 HN archetypes + Algolia seed enricher + points/comments ground truth
 lightningfish_service/  FastAPI service (local or Modal)
 lightningfish_web/      Next.js streaming frontend
 ```
@@ -428,6 +429,77 @@ submission content (timing, luck, who sees it early, the ranking algorithm) —
 not a defect in this simulator. Improving on this would need either richer
 seed content or accepting a real ceiling on how predictable HN reception is
 from submission content alone.
+
+### Signal-ceiling check: does richer static metadata beat the naive baseline?
+
+Before investing in new seed enrichment (e.g. pulling early comments), a fair
+question is whether the *existing* seed fields already contain more signal
+than the current naive baseline extracts. Tested offline against the 36
+cached, class-balanced real HN events (no network/LLM calls — a session
+scratch script, not committed): several single-feature and combined
+heuristics built from fields already present in the seed (author karma at
+several thresholds, `has_url`, known-good domain allowlist, tag, title
+length, title-has-digit, self-post presence, log-scaled karma).
+
+Result: **author karma alone (> 500) scores 69% — identical to the current
+naive baseline** (karma + `has_url`, 0.6/0.4 weighted), meaning `has_url`
+contributes nothing measurable. Every other single feature is at or below the
+50% majority-class floor. Every richer *combination* tested scored **worse**
+than karma alone (64%, 58%, 50%) — adding uninformative features (url,
+domain, tag, title shape) dilutes rather than helps. Conclusion: there is no
+under-exploited signal in the current static seed fields; author identity is
+carrying essentially all of the predictive power available from submission
+metadata. This is evidence for a real ceiling, not proof (n=36), but the
+pattern — one feature clearly above chance, everything else clustered at or
+below chance, combinations strictly worse — is not noise-shaped.
+
+This ceiling is independently corroborated: a separate ML+LLM Hacker News
+predictor (144K stories, LightGBM + embeddings + Claude-generated comments,
+unaffiliated project) reports the same "~60-70% accuracy ceiling" from a
+completely different modeling approach. Academic work on Reddit meme virality
+similarly finds author reputation/network features dominate *early*
+predictability, with content signal only reemerging as the post ages and
+picks up its own engagement trail — consistent with the seed-only ceiling
+found here, and consistent with early comments (post-submission, dynamic)
+being the one untested lever with a plausible shot at moving past it, as
+opposed to further static-content enrichment.
+
+### Prior art and where this project sits
+
+A literature/prior-art check (2026-08) found active research in LLM-based
+social simulation, but it clusters around a few shapes this project doesn't:
+opinion-dynamics/dissemination models validated by trajectory-shape matching
+against real corpora rather than held-out settled-outcome backtests (OpinioNet,
+DualMind, POSIM); large recommendation-driven "world models" with real user
+pools (SocioVerse); and content-engagement classifiers that compare LLMs
+against fine-tuned BERT baselines rather than against a multi-agent simulation
+(the "action-guided response generation" COVID-tweet study) — that study found
+user/history features dominate over content for engagement prediction, the
+same shape of result as the karma-ceiling finding above.
+
+A 2025 review ("Validation is the central challenge for generative social
+simulation") names exactly the gap this project has been closing: rigorous
+backtesting against real settled outcomes, compared against content-free and
+single-LLM-call baselines with a significance test, is uncommon in this space
+— most published work validates by replicating aggregate statistics or
+trajectory shapes, not by beating baselines on held-out prediction.
+
+What looks genuinely distinctive here, based on this check (not exhaustive —
+no formal lit review was done): (1) one adapter architecture spanning three
+unrelated domains (finance, code review, HN) under a single engine, rather
+than a bespoke model per platform; (2) point-in-time safety as an explicit,
+tested architectural guarantee (ground-truth fields never enter the seed) —
+most backtests in this space don't state this guarantee explicitly; (3) the
+three-rung baseline ladder (naive heuristic → single-LLM-call → multi-agent
+sim) with a binomial significance test on the sim's edge over the best
+baseline, which forces an honest answer to "is the multi-agent machinery
+adding anything" rather than reporting simulation accuracy in isolation. The
+signal-ceiling check above — verifying no unexploited signal exists in current
+features before greenlighting new data collection — is the same discipline
+applied one level down, to the seed-enrichment decision rather than the model.
+
+No formal comparative evaluation was done against any of the cited systems;
+this is a directional read from public descriptions, not a benchmark.
 
 ### How to read a run
 
