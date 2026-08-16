@@ -374,6 +374,61 @@ an offline per-archetype breakdown CLI and a population-mix sweep
 (`sweep_population`), both usable on any cached repo with zero further network
 calls.
 
+### HN domain investigation: a real core bug found, but not the root cause
+
+The third domain (Hacker News reception/engagement, see
+[specs/2026-08-09-hn-sentiment-domain-design.md](specs/2026-08-09-hn-sentiment-domain-design.md))
+showed the same shape of problem as coding at first: on a real, class-balanced
+n=30 sample, the sim scored **worse than chance** — 47% (points) and 39%
+(comments) against a majority-class floor of 50%/57%, while the naive
+karma+URL baseline hit 70%. The sim predicted "viral" on 29 of 30 stories.
+
+**A real, independent core bug was found and fixed along the way.**
+`TierRouter.route()` selected T2 "reactor" agents via `eligible_t2[:max_t2]` —
+a plain list slice, not a random or representative sample. Since
+`build_*_personas()` constructs agents archetype-by-archetype from a fixed
+config list, whichever archetype is declared **first** (CasualLurkerVoter in
+HN, ValueInvestor in finance, SecurityReviewer in coding) silently claimed
+every T2 slot, every round, for the whole run — the only tier that reads the
+crowd feed and gets a real LLM re-evaluation. Confirmed by a regression test
+(`test_t2_selection_is_not_biased_by_construction_order`) and fixed to
+`random.sample`. This affects all three domains, not just HN.
+
+**Re-running the HN backtest with the fix showed the bug was real but not
+causal here**: per-archetype magnitudes changed substantially (e.g.
+EarlyAdopterHypeBeast, previously starved of T2 access, swung from ~±0.1 to
+±0.5+ once it got a fair share), but the aggregate sign pattern was
+unchanged — because EarlyAdopterHypeBeast and ShowHNFounder are *also*
+high-herding "hype" archetypes, giving them fair access just added more
+voices amplifying the same bias rather than counteracting it.
+
+**Root cause, found via a three-layer synthetic probe** (isolating the raw
+model, a persona-alone call, and the full simulation on two maximally
+unambiguous synthetic stories — a benchmarked/reputable-author post vs. a
+spam bit.ly/karma=1 post):
+
+1. The **raw single-LLM-call baseline** (no persona) scored the obvious spam
+   post at **+0.25 (still "viral")** — a genuine positivity bias in the raw
+   model's response to the prediction framing, even on egregiously bad content.
+2. **Persona-conditioned calls correctly override it**: GreybeardCynic alone
+   scored the same spam post at **−0.92**, ContrarianSkeptic at **−0.85**.
+3. **The full simulation correctly discriminates**: GOOD → **+0.19**, BAD →
+   **−0.25**, with even EarlyAdopterHypeBeast swinging to **−0.60** on the bad
+   post. This is the same clean sign-correct result the coding domain's
+   synthetic probe produced (+0.26/−0.26) — the dynamics, tier-routing, and
+   personas all work correctly given unambiguous content.
+
+**Conclusion, parallel to coding's:** the mechanism is not broken — it
+demonstrably discriminates when the seed carries a real signal. Real HN
+stories that flopped (`points=1–4`) evidently don't look like the synthetic
+BAD example; a flopped story's title/text/URL/author-karma doesn't carry the
+kind of unambiguous negative signal a spam post does. HN reception, like PR
+merging, is apparently driven substantially by factors outside the static
+submission content (timing, luck, who sees it early, the ranking algorithm) —
+not a defect in this simulator. Improving on this would need either richer
+seed content or accepting a real ceiling on how predictable HN reception is
+from submission content alone.
+
 ### How to read a run
 
 1. **Confidence first.** If `low_confidence` is true (mean `parse_success_rate`
