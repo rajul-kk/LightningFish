@@ -17,6 +17,11 @@ Hacker News + early comments — the same stories re-seeded with their first
 submission-only ceiling (ARCHITECTURE.md §10). Requires a prior `hn` run:
     python -m tests.integration.run_backtest hn-early [limit]
 
+Add "blind" to restrict to stories that drew no early discussion — the only
+subgroup where the early-comment count baseline carries no information and
+the simulation must read submission content to beat it:
+    python -m tests.integration.run_backtest hn-early blind
+
 Runs BOTH a points-direction (reception/virality) and a num_comments-direction
 (engagement) backtest against the SAME simulated events — one simulation per
 event, scored twice via score_precomputed(). See
@@ -230,8 +235,16 @@ def _run_hn_early(args: list[str]) -> None:
               "'python -m tests.integration.run_backtest hn 40' first — this "
               "experiment reuses those exact stories so the comparison is paired.")
         sys.exit(1)
-    if args:
-        story_ids = story_ids[: int(args[0])]
+
+    # "blind" restricts to stories that drew NO early discussion. The
+    # early-comment count baseline is saturated where comments exist (every
+    # such story in the sample went viral) and blind here, guessing "flop" for
+    # all of them — so this subgroup is the only place the simulation can show
+    # it reads submission content rather than counting reactions.
+    blind_only = "blind" in args
+    limits = [a for a in args if a.isdigit()]
+    if limits:
+        story_ids = story_ids[: int(limits[0])]
 
     def _pull() -> list[BacktestEvent]:
         built = []
@@ -254,6 +267,9 @@ def _run_hn_early(args: list[str]) -> None:
     with_comments = sum(1 for e in events if e.seed.metadata.get("early_comment_count", 0) > 0)
     print(f"  {len(events)} events ({with_comments} with >=1 early comment, "
           f"window={window}s)")
+    if blind_only:
+        events = [e for e in events if e.seed.metadata.get("early_comment_count", 0) == 0]
+        print(f"  --blind: restricted to {len(events)} zero-early-comment events")
 
     model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
     engine = SimulationEngine(points_adapter, model=model)
