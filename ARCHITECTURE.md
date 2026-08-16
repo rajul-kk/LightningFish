@@ -464,6 +464,64 @@ found here, and consistent with early comments (post-submission, dynamic)
 being the one untested lever with a plausible shot at moving past it, as
 opposed to further static-content enrichment.
 
+### Early comments: the dynamic signal is real, and it relocates the question
+
+The ceiling check above justified spending effort on early community reaction
+rather than more static-content parsing. That experiment
+([early_comments.py](lightningfish_hn/early_comments.py),
+`run_backtest hn-early`) re-seeds the **same 36 stories** — read from the
+submission-only cache, so the comparison is paired and not a different sample —
+with every comment posted in the story's first 2 hours.
+
+Point-in-time safety is enforced, not assumed: the window is re-checked locally
+per comment rather than trusting the server-side filter, a window larger than
+25% of the settlement period raises, and tests assert the target values never
+reach the seed. The task framing does change — it becomes "given the submission
+*and* its first 2h of reaction, predict reception at 24h" — which is strictly
+easier than submission-only, so these numbers are **not comparable** to the
+69%/47% above. The baseline ladder gains a matching rung
+(`naive_early`) so the simulation must beat *counting* the comments, not merely
+notice they exist.
+
+**Result on the points axis (n=36, offline, no LLM):**
+
+| Predictor | Accuracy |
+|---|---|
+| majority class | 50% |
+| karma (submission-only ceiling) | 69% |
+| **early-comment count, first 2h** | **86%** |
+
+The structure matters more than the headline:
+
+- **All 13 stories with ≥2 early comments went viral — 13/13.** Perfect
+  precision; no flop in the sample drew more than one early comment.
+- **All 5 errors are viral stories with *zero* early comments**, one of which
+  reached 220 points. The baseline's only failure mode is false negatives on
+  slow burners.
+
+So the cheap count baseline is saturated where comments exist and **blind on the
+23 zero-comment stories** (18 flop, 5 viral), where it must guess "flop" and
+scores 78%. That subgroup is the only place left where submission content is the
+sole available signal, and it is therefore the sharp test for the simulation:
+can multi-agent reading of the *content* beat guessing the majority inside the
+blind subgroup? Answering it needs the sim run, which is compute-bound (see
+below) and not yet done.
+
+**Honesty about novelty:** "early engagement predicts later engagement" is not a
+new finding and should not be presented as one — it is close to tautological, and
+the 86% mostly reflects that. The non-obvious parts are the *shape* (perfect
+precision, errors exclusively on zero-comment virals) and the blind-subgroup
+question, which is not answered by the count baseline at all.
+
+**Compute note.** The sim run is blocked on hardware, not code. Ollama on this
+host runs CPU-only (`size_vram: 0`) alongside an unrelated RL training job; a
+trivial 23-token completion measured **27 seconds**, putting a 36-event run at
+6–10 hours. A first attempt also exposed a real bug — `LocalProvider` built its
+OpenAI client with no timeout, inheriting the SDK's 600s × 2 retries, so one
+wedged request stalled a run indefinitely at event 12/36. Now bounded and
+degrading through the existing parse-failure path
+([llm_provider.py](lightningfish_core/llm_provider.py)).
+
 ### Prior art and where this project sits
 
 A literature/prior-art check (2026-08) found active research in LLM-based

@@ -147,7 +147,9 @@ Set environment variables in the Vercel dashboard:
 Backtests pull real data and score the simulation's predicted direction against
 actual outcomes, alongside a naive baseline, a single-LLM-call baseline, and a
 majority-class reference, with a binomial significance test. See
-[ARCHITECTURE.md §4](ARCHITECTURE.md) for methodology.
+[ARCHITECTURE.md §4](ARCHITECTURE.md) for the harness internals and
+[METHODOLOGY.md](METHODOLOGY.md) for the validation protocol and why the
+single-LLM-call rung is the one that matters.
 
 ```bash
 # Coding — class-balanced closed PRs from a public repo (tokenless works; a
@@ -160,6 +162,10 @@ python -m tests.integration.run_backtest finance
 # Hacker News — class-balanced settled stories, scored on both points and
 # num_comments (tokenless works; free 10,000 req/hr, no GITHUB_TOKEN needed)
 python -m tests.integration.run_backtest hn 20
+
+# Hacker News + first 2h of community reaction, on the SAME stories as the
+# run above (paired). Adds an early-engagement rung to the baseline ladder.
+python -m tests.integration.run_backtest hn-early
 
 # Calibrate engine params against backtest accuracy
 python -m tests.integration.run_calibration pallets flask 20
@@ -190,7 +196,7 @@ python -m tests.integration.run_population_sweep hn
 ## Tests
 
 ```bash
-python -m pytest -q          # 193 tests, ~18s
+python -m pytest -q          # 202 tests, ~20s
 ```
 
 ---
