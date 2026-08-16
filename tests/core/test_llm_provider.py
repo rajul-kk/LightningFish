@@ -168,3 +168,39 @@ def test_local_generate_post_parses_response():
     assert post.argument_tag == "correctness"
     assert abs(opinion - 0.7) < 0.01
     assert cost == 0.0
+
+
+def test_local_provider_sets_a_bounded_timeout():
+    """The SDK default is 600s x 2 retries — one wedged local request would
+    otherwise stall a multi-hour backtest for half an hour with no output."""
+    from lightningfish_core.llm_provider import _LOCAL_TIMEOUT_SECONDS, LocalProvider
+    with patch("lightningfish_core.llm_provider.openai.OpenAI") as mock_cls:
+        LocalProvider()
+    kwargs = mock_cls.call_args.kwargs
+    assert kwargs["timeout"] == _LOCAL_TIMEOUT_SECONDS
+    assert kwargs["max_retries"] <= 1
+
+
+def test_local_timeout_degrades_instead_of_killing_the_run():
+    """A timed-out call must look like an unusable response, not an exception:
+    a long backtest should survive one slow request from a loaded server."""
+    from lightningfish_core.llm_provider import LocalProvider
+    with patch("lightningfish_core.llm_provider.openai.OpenAI") as mock_cls:
+        client = MagicMock()
+        client.chat.completions.create.side_effect = TimeoutError("read timed out")
+        mock_cls.return_value = client
+        provider = LocalProvider()
+
+    opinion, cost = provider.get_opinion("sys", "msg", "ollama:qwen2.5:7b")
+    assert opinion == 0.0
+    assert cost == 0.0
+
+    post, opinion_after, _ = provider.generate_post(
+        system="s", model="ollama:qwen2.5:7b", agent_id="a1",
+        archetype="Lurker", round_number=1, opinion_before=0.25,
+    )
+    assert post is not None
+    assert opinion_after == 0.25  # unchanged, not corrupted to 0
+
+    opinions, _ = provider.batch_opinions_from_feed(["s1", "s2"], "ollama:qwen2.5:7b")
+    assert len(opinions) == 2

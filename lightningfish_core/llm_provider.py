@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import openai
@@ -15,6 +16,12 @@ _MODEL_COSTS: dict[str, tuple[float, float]] = {
 }
 _DEFAULT_COSTS = (3e-6, 15e-6)
 _LOCAL_BASE_URL = "http://localhost:11434/v1"
+
+# Local inference on a CPU-only or otherwise loaded host is slow, but it must
+# be BOUNDED. The OpenAI SDK defaults to a 600s timeout with 2 retries, so a
+# single wedged request can stall a multi-hour backtest for 30 minutes with no
+# output — observed hanging an HN run indefinitely at event 12 of 36.
+_LOCAL_TIMEOUT_SECONDS = float(os.environ.get("LIGHTNINGFISH_LOCAL_TIMEOUT", "240"))
 
 _POST_USER_MSG = "Write your post and updated opinion now."
 _BATCH_USER_SUFFIX = "Return exactly {n} opinion floats, one per line, in agent order. Range -1.0 to 1.0. No other text."
@@ -180,21 +187,40 @@ class LocalProvider:
     """OpenAI-compatible local inference — Ollama, llama.cpp, vLLM, etc."""
 
     def __init__(self, base_url: str = _LOCAL_BASE_URL) -> None:
-        self._client = openai.OpenAI(base_url=base_url, api_key="local")
+        self._client = openai.OpenAI(
+            base_url=base_url,
+            api_key="local",
+            timeout=_LOCAL_TIMEOUT_SECONDS,
+            max_retries=1,
+        )
 
     def _bare(self, model: str) -> str:
         return model.split(":", 1)[-1] if ":" in model else model
 
+    def _complete(self, model: str, system: str, user_msg: str, max_tokens: int) -> str:
+        """
+        One bounded completion. Returns "" when the call times out or errors.
+
+        Every caller already handles an unusable response — that is what a
+        timeout is — and the existing parse-failure path surfaces it through
+        parse_success_rate / low_confidence. Raising instead would kill a
+        multi-hour backtest on one slow request from a loaded local server.
+        """
+        try:
+            response = self._client.chat.completions.create(
+                model=self._bare(model),
+                max_tokens=max_tokens,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user_msg},
+                ],
+            )
+        except Exception:
+            return ""
+        return (response.choices[0].message.content or "").strip()
+
     def get_opinion(self, system: str, user_msg: str, model: str) -> tuple[float, float]:
-        response = self._client.chat.completions.create(
-            model=self._bare(model),
-            max_tokens=16,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user_msg},
-            ],
-        )
-        text = (response.choices[0].message.content or "").strip()
+        text = self._complete(model, system, user_msg, max_tokens=16)
         try:
             opinion = max(-1.0, min(1.0, float(text)))
         except ValueError:
@@ -202,15 +228,7 @@ class LocalProvider:
         return opinion, 0.0
 
     def generate_post(self, system, model, agent_id, archetype, round_number, opinion_before):
-        response = self._client.chat.completions.create(
-            model=self._bare(model),
-            max_tokens=120,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": _POST_USER_MSG},
-            ],
-        )
-        raw = (response.choices[0].message.content or "").strip()
+        raw = self._complete(model, system, _POST_USER_MSG, max_tokens=120)
         post, opinion_after = _parse_post_response(raw, agent_id, archetype, round_number, opinion_before)
         return post, opinion_after, 0.0
 
@@ -219,16 +237,7 @@ class LocalProvider:
             return [], 0.0
         n = len(systems)
         combined = "\n---\n".join(f"Agent {i + 1}:\n{s}" for i, s in enumerate(systems))
-        user_msg = _BATCH_USER_SUFFIX.format(n=n)
-        response = self._client.chat.completions.create(
-            model=self._bare(model),
-            max_tokens=n * 8,
-            messages=[
-                {"role": "system", "content": combined},
-                {"role": "user", "content": user_msg},
-            ],
-        )
-        raw = (response.choices[0].message.content or "").strip()
+        raw = self._complete(model, combined, _BATCH_USER_SUFFIX.format(n=n), max_tokens=n * 8)
         return _parse_batch_opinions(raw, n), 0.0
 
 
