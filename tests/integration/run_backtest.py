@@ -12,6 +12,11 @@ list of (ticker, date, headline); edit or extend as needed:
 Hacker News (fully programmatic, objective, free unauthenticated API):
     python -m tests.integration.run_backtest hn [limit]
 
+Hacker News + early comments — the same stories re-seeded with their first
+2h of community reaction, to test whether dynamic signal beats the measured
+submission-only ceiling (ARCHITECTURE.md §10). Requires a prior `hn` run:
+    python -m tests.integration.run_backtest hn-early [limit]
+
 Runs BOTH a points-direction (reception/virality) and a num_comments-direction
 (engagement) backtest against the SAME simulated events — one simulation per
 event, scored twice via score_precomputed(). See
@@ -189,14 +194,104 @@ def _run_hn(args: list[str]) -> None:
     _print_report("hn (num_comments / engagement)", comments_report)
 
 
+def _run_hn_early(args: list[str]) -> None:
+    """
+    The early-comments experiment: same stories as a prior `hn` run, but each
+    seed also carries the story's first-N-hours of community reaction.
+
+    Deliberately PAIRED — story ids are read from the submission-only cache
+    rather than pulled fresh, so any accuracy difference is attributable to the
+    added reaction section and not to a different sample of stories.
+
+    The baseline ladder gains a rung: "naive_early" predicts purely from the
+    early comment COUNT. The simulation only earns a result here by beating
+    that, which is what would show it is reading the comment TEXT rather than
+    just noticing that comments exist.
+    """
+    from lightningfish_core.backtest import BacktestEvent
+    from lightningfish_hn.config import HNCommentsAdapter, HNDomainAdapter
+    from lightningfish_hn.early_comments import (
+        DEFAULT_EARLY_WINDOW_SECONDS,
+        assert_window_is_early,
+        early_engagement_prediction,
+        enrich_hn_seed_with_early_comments,
+    )
+
+    window = int(os.environ.get("LIGHTNINGFISH_HN_EARLY_WINDOW", DEFAULT_EARLY_WINDOW_SECONDS))
+    assert_window_is_early(window)
+
+    base_cache = EventCache("hn_stories")
+    story_ids = [
+        int(eid.split(":")[1]) for eid in base_cache.event_ids()
+        if not eid.startswith("__list__:") and ":" in eid
+    ]
+    if not story_ids:
+        print("No submission-only HN cache found. Run "
+              "'python -m tests.integration.run_backtest hn 40' first — this "
+              "experiment reuses those exact stories so the comparison is paired.")
+        sys.exit(1)
+    if args:
+        story_ids = story_ids[: int(args[0])]
+
+    def _pull() -> list[BacktestEvent]:
+        built = []
+        for i, sid in enumerate(story_ids, 1):
+            try:
+                seed = enrich_hn_seed_with_early_comments(sid, window)
+            except Exception as exc:
+                print(f"  [{i}/{len(story_ids)}] skip {sid}: {exc}")
+                continue
+            built.append(BacktestEvent(event_id=f"hn:{sid}", seed=seed))
+            print(f"  [{i}/{len(story_ids)}] {sid}: "
+                  f"{seed.metadata['early_comment_count']} early comments")
+        return built
+
+    early_cache = EventCache("hn_stories_early")
+    points_adapter = CachingAdapter(HNDomainAdapter(), early_cache)
+    comments_adapter = CachingAdapter(HNCommentsAdapter(), early_cache)
+    events = cached_pull_events(early_cache, f"hn:early:{window}:{len(story_ids)}", _pull)
+
+    with_comments = sum(1 for e in events if e.seed.metadata.get("early_comment_count", 0) > 0)
+    print(f"  {len(events)} events ({with_comments} with >=1 early comment, "
+          f"window={window}s)")
+
+    model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
+    engine = SimulationEngine(points_adapter, model=model)
+    n_agents, n_rounds = _sim_size(60, 6)
+
+    def _ladder(adapter):
+        return {
+            "naive": lambda e: sign(adapter.naive_prediction(e.seed)),
+            "naive_early": lambda e: sign(early_engagement_prediction(e.seed)),
+            "single_llm": llm_baseline(adapter, engine),
+        }
+
+    pairs = []
+    for i, event in enumerate(events, 1):
+        agents = points_adapter.build_personas(n_agents)
+        result = engine.run(event.seed, agents, n_rounds=n_rounds)
+        pairs.append((event, result))
+        print(f"  simulated {i}/{len(events)}", flush=True)
+
+    _print_report("hn+early (points / reception)",
+                  score_precomputed(points_adapter, pairs, baselines=_ladder(points_adapter)))
+    _print_report("hn+early (num_comments / engagement) — SELF-PREDICTING, see caveat",
+                  score_precomputed(comments_adapter, pairs, baselines=_ladder(comments_adapter)))
+    print("\nNote: early comment count is a strict prefix of the 24h num_comments "
+          "target, so the engagement axis above partially predicts itself. The "
+          "points axis is the honest one.")
+
+
 def main() -> None:
-    if len(sys.argv) < 2 or sys.argv[1] not in ("coding", "finance", "hn"):
+    if len(sys.argv) < 2 or sys.argv[1] not in ("coding", "finance", "hn", "hn-early"):
         print(__doc__)
         sys.exit(0)
     if sys.argv[1] == "coding":
         _run_coding(sys.argv[2:])
     elif sys.argv[1] == "finance":
         _run_finance()
+    elif sys.argv[1] == "hn-early":
+        _run_hn_early(sys.argv[2:])
     else:
         _run_hn(sys.argv[2:])
 
