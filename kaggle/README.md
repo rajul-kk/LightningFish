@@ -1,5 +1,16 @@
 # Running backtests on Kaggle (free GPU)
 
+**Two ready-to-upload notebooks live here — start with those:**
+
+| Notebook | Use it for |
+|---|---|
+| [`01_hn_backtest.ipynb`](01_hn_backtest.ipynb) | Reproduce the HN experiments (submission-only → paired early-comments → blind subgroup) in one session |
+| [`02_hn_scale.ipynb`](02_hn_scale.ipynb) | Scale to a few hundred stories, where the significance test can actually support a positive claim. Time-budgeted and checkpointed |
+
+Upload via Kaggle → Create → Notebook → File → Import Notebook. The rest of this
+page explains the setup those notebooks perform, for anyone assembling a run by
+hand.
+
 Local runs are CPU-bound: on a 16 GB box already running other work, Ollama
 falls back to CPU (`size_vram: 0`) and a 36-event HN backtest takes 6–10 hours.
 A Kaggle T4 holds qwen2.5:7b Q4 (~4.7 GB) entirely in its 16 GB of VRAM, which
