@@ -171,10 +171,14 @@ python -m tests.integration.run_backtest hn-early
 python -m tests.integration.run_calibration pallets flask 20
 ```
 
-**No GPU?** [`kaggle_backtest.ipynb`](kaggle_backtest.ipynb) runs all of the above
-on a free Kaggle T4/P100 — the model sits in VRAM instead of thrashing a CPU
-box, turning a 6–10 hour run into minutes. Upload via Kaggle → Create →
-Notebook → File → Import Notebook.
+**No GPU?** Two Kaggle notebooks run these on a free T4 — the model sits in VRAM
+instead of thrashing a CPU box, turning hours into minutes. Upload via Kaggle →
+Create → Notebook → File → Import Notebook.
+
+| Notebook | Runs |
+|---|---|
+| [`kaggle_backtest.ipynb`](kaggle_backtest.ipynb) | the reception backtests (submission-only → paired early-comments → blind subgroup), plus a large-n scaling section |
+| [`kaggle_controversy.ipynb`](kaggle_controversy.ipynb) | the controversy axis — scores whether the simulated crowd *splits*, the one output a single model call doesn't produce |
 
 Cheap local runs: prefix with `LIGHTNINGFISH_MODEL=ollama:qwen2.5:7b` (llama3.2
 3B is too weak — drops the structured format) and shrink the sim with

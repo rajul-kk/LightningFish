@@ -369,8 +369,10 @@ def _run_hn_controversy(args: list[str]) -> None:
         truth = adapter.get_ground_truth(ev.seed)
         if truth is not None and adapter.truth_direction(truth) != 0:
             scoreable.append(ev)
+    # flush: the UTF-8 stdout wrapper is block-buffered, so without this a long
+    # first simulation shows an empty log and looks indistinguishable from a hang.
     print(f"  {len(scoreable)} of {len(events)} events have a controversy direction "
-          f"(rest are mid-ratio or below the points floor)")
+          f"(rest are mid-ratio or below the points floor)", flush=True)
     if not scoreable:
         print("  nothing to score — pull more stories with a larger limit")
         sys.exit(1)
