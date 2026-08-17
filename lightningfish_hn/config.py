@@ -21,7 +21,16 @@ from lightningfish_core.models import (
     SimulationResult,
 )
 
-from .ground_truth import COMMENTS_HIGH, COMMENTS_LOW, POINTS_HIGH, POINTS_LOW, get_hn_ground_truth
+from .ground_truth import (
+    COMMENTS_HIGH,
+    COMMENTS_LOW,
+    CONTROVERSY_HIGH,
+    CONTROVERSY_LOW,
+    CONTROVERSY_MIN_POINTS,
+    POINTS_HIGH,
+    POINTS_LOW,
+    get_hn_ground_truth,
+)
 from .personas import build_hn_personas
 from .seed_enricher import enrich_hn_seed
 
@@ -149,6 +158,70 @@ class HNDomainAdapter(DomainAdapter):
             },
             total_tier1_calls=result.total_tier1_calls,
             estimated_cost_usd=result.total_cost_usd,
+        )
+
+
+_STDDEV_CONTENTIOUS = 0.35
+
+
+class HNControversyAdapter(HNDomainAdapter):
+    """
+    Scores whether the crowd **splits**, not which way it leans.
+
+    Every other backtest in this repo reduces a finished simulation to
+    sign(final mean) — one bit, and the same bit one raw LLM call produces,
+    which is why the multi-agent machinery has never had a structural edge to
+    demonstrate. Dispersion is different in kind: a single call emits one
+    number and cannot express "this will divide people", while a population of
+    heterogeneous agents either converges or does not.
+
+    Prediction: stddev of the final opinion distribution.
+    Truth: comments-to-points ratio (see ground_truth.py).
+
+    Not registered — instantiate directly for the controversy backtest.
+    """
+
+    display_name = "Hacker News Controversy"
+    opinion_labels = ("consensus", "contested")
+
+    def sim_direction(self, result: SimulationResult) -> int:
+        dist = result.final_distribution
+        if not dist or len(dist) < 2:
+            return 0
+        mean = sum(dist) / len(dist)
+        stddev = (sum((x - mean) ** 2 for x in dist) / len(dist)) ** 0.5
+        return 1 if stddev >= _STDDEV_CONTENTIOUS else -1
+
+    def truth_direction(self, truth: GroundTruthRecord) -> int:
+        points = truth.data.get("points", 0)
+        comments = truth.data.get("num_comments", 0)
+        # Below the floor the ratio measures obscurity, not agreement.
+        if points < CONTROVERSY_MIN_POINTS:
+            return 0
+        ratio = comments / points
+        if ratio >= CONTROVERSY_HIGH:
+            return 1
+        if ratio < CONTROVERSY_LOW:
+            return -1
+        return 0
+
+    def naive_prediction(self, seed: EnrichedSeed) -> float:
+        # Content-free: Ask HN threads and question titles invite argument.
+        meta = seed.metadata
+        is_ask = meta.get("tag") == "ask_hn"
+        has_question = "?" in (meta.get("title") or "")
+        return max(-1.0, min(1.0, (0.6 if is_ask else -0.6) + (0.4 if has_question else -0.4)))
+
+    def baseline_llm_prompt(self, seed: EnrichedSeed) -> str:
+        # Rung 2 must be asked the SAME question the simulation answers,
+        # otherwise the comparison is rigged.
+        return (
+            f"{seed.summary}\n\n"
+            f"Will this Hacker News submission provoke DISAGREEMENT in the "
+            f"comments (people arguing with each other), or will reaction be "
+            f"largely one-sided?\n"
+            f"Output a single float between -1.0 (one-sided consensus) and "
+            f"1.0 (heavily contested). Output ONLY the number."
         )
 
 

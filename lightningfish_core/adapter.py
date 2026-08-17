@@ -48,6 +48,21 @@ class DomainAdapter(ABC):
         """
         return 0
 
+    def sim_direction(self, result: SimulationResult) -> int:
+        """
+        Which aspect of the finished simulation is being predicted, as +1/-1/0.
+
+        Defaults to the sign of the final mean opinion — but that is one bit,
+        and it is the same bit a single LLM call produces, which is why a
+        multi-agent run has no structural advantage when scored this way.
+        Override to score what only a population can express: the *dispersion*
+        of final_distribution (does the crowd split?), herding_index,
+        cascade_detected. See HNControversyAdapter.
+        """
+        return 1 if result.trajectory and result.trajectory[-1] > 0 else (
+            -1 if result.trajectory and result.trajectory[-1] < 0 else 0
+        )
+
     def cache_key(self, seed: EnrichedSeed) -> str | None:
         """
         A stable identifier for this seed's underlying real-world event (e.g.

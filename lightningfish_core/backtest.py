@@ -121,7 +121,10 @@ def _score_outcomes(
             skipped += 1
             continue
 
-        sim_dir = sign(result.trajectory[-1]) if result.trajectory else 0
+        # Not sign(trajectory[-1]) directly: the adapter decides which aspect of
+        # the run is under test, so a domain can score crowd dispersion rather
+        # than the mean. Default behaviour is unchanged.
+        sim_dir = adapter.sim_direction(result)
         parse_rates.append(result.mean_parse_success_rate)
         if result.low_confidence:
             low_conf_events += 1

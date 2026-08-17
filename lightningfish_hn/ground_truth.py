@@ -39,6 +39,22 @@ COMMENTS_LOW = 5
 
 AGE_CUTOFF_SECONDS = 24 * 60 * 60
 
+# --- Controversy axis -------------------------------------------------------
+# comments-to-points ratio. On HN a thread drawing as many comments as upvotes
+# is the classic argument signature; a highly-upvoted story with few comments
+# is uncontested approval.
+#
+# The ratio is meaningless for stories nobody saw — 0 comments on a 1-point
+# story is obscurity, not consensus — so MIN_POINTS gates it out rather than
+# scoring them as "uncontroversial".
+#
+# HIGH/LOW were placed either side of the observed median ratio to balance the
+# classes, the same label-agnostic reasoning the class-balanced sampler uses.
+# They were NOT tuned against any model's accuracy (rule 3 in METHODOLOGY.md).
+CONTROVERSY_HIGH = 0.7
+CONTROVERSY_LOW = 0.4
+CONTROVERSY_MIN_POINTS = 20
+
 
 def get_hn_ground_truth(story_id: int) -> GroundTruthRecord | None:
     item = fetch_hn_item(story_id)

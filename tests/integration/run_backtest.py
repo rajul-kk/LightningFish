@@ -17,6 +17,11 @@ Hacker News + early comments — the same stories re-seeded with their first
 submission-only ceiling (ARCHITECTURE.md §10). Requires a prior `hn` run:
     python -m tests.integration.run_backtest hn-early [limit]
 
+Hacker News controversy — scores whether the crowd SPLITS (dispersion of the
+final opinion distribution) rather than which way it leans. The only axis
+where the simulation's output differs in kind from one raw model call:
+    python -m tests.integration.run_backtest hn-controversy [limit]
+
 Add "blind" to restrict to stories that drew no early discussion — the only
 subgroup where the early-comment count baseline carries no information and
 the simulation must read submission content to beat it:
@@ -52,6 +57,7 @@ from lightningfish_core.backtest import (
 )
 from lightningfish_core.engine import SimulationEngine
 from lightningfish_core.event_cache import CachingAdapter, EventCache, cached_pull_events
+from lightningfish_core.models import SimulationResult
 
 _NO_CACHE = os.environ.get("LIGHTNINGFISH_NO_CACHE") == "1"
 
@@ -217,6 +223,7 @@ def _run_hn_early(args: list[str]) -> None:
     from lightningfish_hn.config import HNCommentsAdapter, HNDomainAdapter
     from lightningfish_hn.early_comments import (
         DEFAULT_EARLY_WINDOW_SECONDS,
+        EARLY_COMMENT_THRESHOLD,
         assert_window_is_early,
         early_engagement_prediction,
         enrich_hn_seed_with_early_comments,
@@ -272,9 +279,28 @@ def _run_hn_early(args: list[str]) -> None:
         print(f"  reused {reused} ground-truth measurements from the base run "
               f"(avoids re-measuring drifting outcomes)")
 
-    with_comments = sum(1 for e in events if e.seed.metadata.get("early_comment_count", 0) > 0)
+    counts = [e.seed.metadata.get("early_comment_count", 0) for e in events]
+    with_comments = sum(1 for c in counts if c > 0)
+    above_thresh = sum(1 for c in counts if c >= EARLY_COMMENT_THRESHOLD)
     print(f"  {len(events)} events ({with_comments} with >=1 early comment, "
+          f"{above_thresh} with >={EARLY_COMMENT_THRESHOLD}, max={max(counts) if counts else 0}, "
           f"window={window}s)")
+
+    # A uniform enrichment makes naive_early a constant, which silently turns
+    # this whole experiment into a no-op that still prints a plausible-looking
+    # accuracy table. Observed on a run where every event came back with zero
+    # early comments. Refuse rather than report a meaningless baseline.
+    if above_thresh == 0 or above_thresh == len(events):
+        print(
+            f"\n  ABORT: early-comment enrichment is degenerate — "
+            f"{above_thresh}/{len(events)} events are above the threshold, so "
+            f"naive_early predicts one class for everything and the comparison "
+            f"is meaningless.\n"
+            f"  Either the comment fetch is failing (check network/API shape) or "
+            f"this sample genuinely has no early discussion. Inspect with:\n"
+            f"    EventCache('hn_stories_early') -> seed.metadata['early_comment_count']"
+        )
+        sys.exit(1)
     if blind_only:
         events = [e for e in events if e.seed.metadata.get("early_comment_count", 0) == 0]
         print(f"  --blind: restricted to {len(events)} zero-early-comment events")
@@ -306,8 +332,77 @@ def _run_hn_early(args: list[str]) -> None:
           "points axis is the honest one.")
 
 
+def _run_hn_controversy(args: list[str]) -> None:
+    """
+    Scores whether the crowd SPLITS rather than which way it leans.
+
+    Every other run here reduces a simulation to sign(final mean) — one bit,
+    and the same bit one raw LLM call produces, which is why the multi-agent
+    machinery has never had a structural edge to show. Dispersion is the thing
+    only a population can express, so this is the first backtest where rung 2
+    is a fair fight.
+
+    Simulations are cached (trajectory + final distribution) so re-scoring
+    against a different question later costs nothing.
+    """
+    from lightningfish_core.backtest import BacktestEvent
+    from lightningfish_hn.backtest_events import pull_hn_events
+    from lightningfish_hn.config import HNControversyAdapter
+
+    limit = int(args[0]) if args else 40
+    cache = EventCache("hn_stories")
+    adapter = CachingAdapter(HNControversyAdapter(), cache)
+    events = cached_pull_events(
+        cache, f"hn:points:{limit}", lambda: pull_hn_events("points", limit)
+    )
+
+    model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
+    engine = SimulationEngine(adapter, model=model)
+    n_agents, n_rounds = _sim_size(60, 6)
+    run_key = f"{model}:{n_agents}x{n_rounds}"
+
+    # Only simulate events whose outcome is actually scoreable on this axis:
+    # the comments/points ratio is meaningless for stories nobody saw, and
+    # simulating them would burn most of the run on events that get skipped.
+    scoreable = []
+    for ev in events:
+        truth = adapter.get_ground_truth(ev.seed)
+        if truth is not None and adapter.truth_direction(truth) != 0:
+            scoreable.append(ev)
+    print(f"  {len(scoreable)} of {len(events)} events have a controversy direction "
+          f"(rest are mid-ratio or below the points floor)")
+    if not scoreable:
+        print("  nothing to score — pull more stories with a larger limit")
+        sys.exit(1)
+
+    pairs = []
+    for i, ev in enumerate(scoreable, 1):
+        cached_run = cache.get_run(ev.event_id, run_key)
+        if cached_run:
+            result = SimulationResult(
+                seed=ev.seed, trajectory=cached_run["trajectory"],
+                round_events=[], final_distribution=cached_run["final_distribution"],
+                total_tier1_calls=0, total_cost_usd=0.0,
+                mean_parse_success_rate=cached_run["mean_parse_success_rate"],
+                low_confidence=cached_run["low_confidence"],
+            )
+            print(f"  [{i}/{len(scoreable)}] {ev.event_id} (cached)", flush=True)
+        else:
+            agents = adapter.build_personas(n_agents)
+            result = engine.run(ev.seed, agents, n_rounds=n_rounds)
+            cache.put_run(ev.event_id, run_key, result)
+            cache.save()
+            print(f"  [{i}/{len(scoreable)}] {ev.event_id} simulated", flush=True)
+        pairs.append((ev, result))
+
+    _print_report("hn (controversy / does the crowd split)",
+                  score_precomputed(adapter, pairs, baselines=_baselines(adapter, engine)))
+
+
 def main() -> None:
-    if len(sys.argv) < 2 or sys.argv[1] not in ("coding", "finance", "hn", "hn-early"):
+    if len(sys.argv) < 2 or sys.argv[1] not in (
+        "coding", "finance", "hn", "hn-early", "hn-controversy"
+    ):
         print(__doc__)
         sys.exit(0)
     if sys.argv[1] == "coding":

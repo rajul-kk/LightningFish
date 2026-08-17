@@ -98,6 +98,30 @@ class EventCache:
             "ground_truth": ground_truth.data if ground_truth is not None else None,
         }
 
+    def put_run(self, event_id: str, run_key: str, result: SimulationResult) -> None:
+        """
+        Persist the parts of a finished run that scoring needs.
+
+        Simulations are the expensive step and were previously discarded once
+        printed, so re-scoring the same run against a different question — the
+        crowd's dispersion rather than its mean, say — meant paying to simulate
+        again. Stores the trajectory and the final distribution, not the whole
+        object, so the cache stays small and JSON-serialisable.
+        """
+        entry = self._data.setdefault(event_id, {})
+        entry.setdefault("runs", {})[run_key] = {
+            "trajectory": list(result.trajectory),
+            "final_distribution": list(result.final_distribution),
+            "mean_parse_success_rate": result.mean_parse_success_rate,
+            "low_confidence": result.low_confidence,
+        }
+
+    def get_run(self, event_id: str, run_key: str) -> dict | None:
+        entry = self._data.get(event_id)
+        if not entry:
+            return None
+        return entry.get("runs", {}).get(run_key)
+
     def copy_ground_truth_from(self, other: "EventCache") -> int:
         """
         Import ``other``'s ground truth for events this cache already knows,
