@@ -171,6 +171,11 @@ python -m tests.integration.run_backtest hn-early
 python -m tests.integration.run_calibration pallets flask 20
 ```
 
+**No GPU?** [`kaggle_backtest.ipynb`](kaggle_backtest.ipynb) runs all of the above
+on a free Kaggle T4/P100 — the model sits in VRAM instead of thrashing a CPU
+box, turning a 6–10 hour run into minutes. Upload via Kaggle → Create →
+Notebook → File → Import Notebook.
+
 Cheap local runs: prefix with `LIGHTNINGFISH_MODEL=ollama:qwen2.5:7b` (llama3.2
 3B is too weak — drops the structured format) and shrink the sim with
 `LIGHTNINGFISH_N_AGENTS` / `LIGHTNINGFISH_N_ROUNDS`. Watch the `low_confidence`
