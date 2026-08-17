@@ -106,3 +106,45 @@ def test_cached_pull_events_different_keys_dont_collide(tmp_path):
     b = cached_pull_events(cache, "listB", lambda: [BacktestEvent("b1", _seed("b1"))])
     assert a[0].event_id == "a1"
     assert b[0].event_id == "b1"
+
+
+def test_copy_ground_truth_from_pairs_two_caches(tmp_path):
+    """HN points keep accruing and the API serves only current totals, so a
+    second run over the same events must reuse the first run's measurement
+    rather than silently re-measuring a moved outcome."""
+    from lightningfish_core.event_cache import EventCache
+    from lightningfish_core.models import EnrichedSeed, GroundTruthRecord
+
+    def seed(n):
+        return EnrichedSeed(domain_id="hn", raw_input={}, summary=f"s{n}",
+                            entities=[], event_type="story", metadata={"story_id": n})
+
+    base = EventCache("base", cache_dir=tmp_path)
+    base.put("hn:1", seed(1), GroundTruthRecord(data={"points": 4}))
+    base.put("hn:2", seed(2), GroundTruthRecord(data={"points": 90}))
+    base.save()
+
+    enriched = EventCache("enriched", cache_dir=tmp_path)
+    enriched.put_seed_only("hn:1", seed(1))
+    enriched.put_seed_only("hn:2", seed(2))
+    assert not enriched.has_ground_truth("hn:1")
+
+    assert enriched.copy_ground_truth_from(base) == 2
+    assert enriched.get_ground_truth("hn:1").data["points"] == 4
+    assert enriched.get_ground_truth("hn:2").data["points"] == 90
+
+
+def test_copy_ground_truth_from_never_overwrites(tmp_path):
+    from lightningfish_core.event_cache import EventCache
+    from lightningfish_core.models import EnrichedSeed, GroundTruthRecord
+
+    s = EnrichedSeed(domain_id="hn", raw_input={}, summary="s", entities=[],
+                     event_type="story", metadata={"story_id": 1})
+    base = EventCache("base2", cache_dir=tmp_path)
+    base.put("hn:1", s, GroundTruthRecord(data={"points": 4}))
+
+    target = EventCache("target2", cache_dir=tmp_path)
+    target.put("hn:1", s, GroundTruthRecord(data={"points": 108}))
+
+    assert target.copy_ground_truth_from(base) == 0
+    assert target.get_ground_truth("hn:1").data["points"] == 108

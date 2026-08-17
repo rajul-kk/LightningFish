@@ -513,6 +513,67 @@ the 86% mostly reflects that. The non-obvious parts are the *shape* (perfect
 precision, errors exclusively on zero-comment virals) and the blind-subgroup
 question, which is not answered by the count baseline at all.
 
+### Blind-subgroup result: the simulation fails decisively
+
+Run on the 22 zero-early-comment stories (24 agents, 3 rounds, qwen2.5:7b).
+Scored on the points axis, all rungs against identical ground truth:
+
+| Rung | Accuracy |
+|---|---|
+| single_llm (one raw model call) | 27% |
+| **simulation** | **32%** |
+| naive (karma) | 55% |
+| majority class | 73% |
+| naive_early (comment count) | 73% |
+
+`p_value_vs_best = 1.000`. The simulation loses to a constant guess by 41
+points. **It predicted "viral" on 21 of 22 stories**, and the raw single call
+predicted viral on all 22 — so the positivity bias identified in the earlier
+synthetic probe is not a quirk of the framing, it dominates completely on real
+low-signal content.
+
+One nuance worth keeping: the sim (32%) does beat its own single-LLM baseline
+(27%) — the multi-agent machinery moves *one* story off the raw model's blanket
+"viral", and it is the right one. So the machinery contributes a real, non-zero
+correction. It is just vastly too small to matter against a bias this large.
+
+This is the cleanest negative in the log. On the subgroup where submission
+content is the only available signal, the simulation extracts nothing usable
+from it: the agents read the title, text, URL and author of a flopped story and
+still say "viral". Combined with the ceiling check, the honest summary of the
+HN domain is that **reception is predicted by who posts and whether anyone
+replies early, not by anything the model reads in the submission itself.**
+
+### Ground truth drifts, and it broke the pairing
+
+Found while reading the above. `get_hn_ground_truth` gated on age >= 24h but
+returned *current* totals, because Algolia serves no historical snapshot. So
+AGE_CUTOFF_SECONDS was a minimum-age gate, never a measurement window, and a
+story measured later reads higher.
+
+Comparing the two caches for the same 36 stories, measured four days apart:
+**6 of 22 scored events had different ground truth, and one flipped class** —
+`hn:49243687` went from 4 points to 108 (HN's second-chance pool re-surfaces
+old submissions), turning a flop into a viral. A run scored against the later
+measurement is therefore not paired with one scored against the earlier.
+
+Fixed two ways: `GroundTruthRecord` now carries `measured_at_i` and
+`age_at_measurement_s` so a late measurement is auditable instead of being
+silently taken for a 24h value, and `EventCache.copy_ground_truth_from`
+imports the base run's measurements so a second experiment over the same
+events cannot re-measure them.
+
+The headline finding survives the drift — re-scored under both snapshots:
+
+| Truth snapshot | karma | early-count | majority |
+|---|---|---|---|
+| as cached (earlier) | 69% | 86% | 50% |
+| re-measured (4 days later) | 67% | 83% | 53% |
+
+Two to three points of movement, same conclusion. The blind-subgroup table
+above is internally consistent — sim and every baseline were scored against one
+identical measurement — so its verdict is unaffected.
+
 **Compute note.** The sim run is blocked on hardware, not code. Ollama on this
 host runs CPU-only (`size_vram: 0`) alongside an unrelated RL training job; a
 trivial 23-token completion measured **27 seconds**, putting a 36-event run at

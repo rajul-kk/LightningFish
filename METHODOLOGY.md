@@ -57,7 +57,7 @@ already beats chance.
 
 ---
 
-## The five rules that make the comparison honest
+## The six rules that make the comparison honest
 
 Most of the ways this protocol can be quietly rigged were found by rigging it
 accidentally, in this repo, and then finding the bug.
@@ -107,6 +107,19 @@ direction* and is excluded (`truth_direction` returns 0). Forcing a call on a
 genuinely ambiguous outcome adds noise to every rung and rewards whichever one
 happens to be biased toward the more common side.
 
+### 6. Ground truth is measured once and reused
+
+If the outcome metric keeps moving, "the ground truth" is a function of *when
+you asked*. Measure once, store the measurement with a timestamp, and have
+every later run read that stored value.
+
+*Found the hard way:* HN points accrue indefinitely and the API serves only
+current totals, so a second run re-measured and disagreed with the first on
+6 of 22 events — one flipping class outright when a 4-point story reached 108
+four days later. Two runs claimed to be paired were not. Records now carry
+`measured_at_i` / `age_at_measurement_s`, and `copy_ground_truth_from` imports
+the original measurements rather than re-fetching.
+
 ---
 
 ## Diagnosing a failure
@@ -145,7 +158,8 @@ are negative, and were reported as negative:
 | Coding (PR merge) | — | ties/beats sim | at or below naive | **fails** — seed lacks the signal |
 | HN points, submission-only | 50% | 69% | 47% | **fails** — worse than chance |
 | HN comments, submission-only | 57% | 71% | 39% | **fails** |
-| HN points, +2h early comments | 50% | 69% karma / **86% early-count** | pending (compute-bound) | — |
+| HN points, +2h early comments | 50% | 69% karma / **86% early-count** | — | baseline jumped, see below |
+| HN points, blind subgroup (n=22) | 73% | 55% karma / 73% early-count | **32%** (single_llm 27%) | **fails** — loses to a constant guess by 41 pts |
 
 The last row is where the protocol earns its keep. Enriching the seed with early
 comments raised the *baseline* from 69% to 86% — so a simulation scored only

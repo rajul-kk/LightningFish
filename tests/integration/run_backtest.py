@@ -264,6 +264,14 @@ def _run_hn_early(args: list[str]) -> None:
     comments_adapter = CachingAdapter(HNCommentsAdapter(), early_cache)
     events = cached_pull_events(early_cache, f"hn:early:{window}:{len(story_ids)}", _pull)
 
+    # Reuse the base run's measurements. HN points keep accruing and Algolia
+    # only serves current totals, so re-fetching here would re-measure and make
+    # this "paired" run unpaired against the submission-only one.
+    reused = early_cache.copy_ground_truth_from(base_cache)
+    if reused:
+        print(f"  reused {reused} ground-truth measurements from the base run "
+              f"(avoids re-measuring drifting outcomes)")
+
     with_comments = sum(1 for e in events if e.seed.metadata.get("early_comment_count", 0) > 0)
     print(f"  {len(events)} events ({with_comments} with >=1 early comment, "
           f"window={window}s)")

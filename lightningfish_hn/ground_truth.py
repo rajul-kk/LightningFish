@@ -2,6 +2,22 @@
 Ground truth for the Hacker News domain: a story's current points/num_comments,
 served only once the story is settled (>=24h old per design review — HN
 front-page dynamics mostly resolve within a day).
+
+DRIFT WARNING. Algolia exposes only a story's *current* totals, never a
+historical snapshot, so AGE_CUTOFF_SECONDS is a minimum-age gate and NOT a
+measurement window: asking at 24h and asking a week later return different
+numbers, and the gap can be large enough to flip an outcome's class. One story
+in the sample went from 4 points to 108 four days later (HN's second-chance
+pool re-surfaces old submissions), turning a "flop" into a "viral".
+
+Two consequences, both load-bearing for backtests:
+
+1. Every record therefore carries ``measured_at_i`` and
+   ``age_at_measurement_s`` so a stale or late measurement is auditable rather
+   than silently assumed to be the 24h value.
+2. Comparisons across runs MUST reuse one cached measurement. Re-fetching truth
+   for a second run silently re-measures and breaks the pairing — see
+   ``EventCache.copy_ground_truth_from``.
 """
 from __future__ import annotations
 
@@ -35,4 +51,9 @@ def get_hn_ground_truth(story_id: int) -> GroundTruthRecord | None:
         "points": item.get("points", 0),
         "num_comments": item.get("num_comments", 0),
         "created_at_i": created_at_i,
+        # Provenance for the drift problem in the module docstring: when this
+        # was measured, and how old the story already was. A record whose age
+        # far exceeds AGE_CUTOFF_SECONDS is a late measurement, not a 24h one.
+        "measured_at_i": int(time.time()),
+        "age_at_measurement_s": int(age_seconds),
     })

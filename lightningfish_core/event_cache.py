@@ -98,6 +98,29 @@ class EventCache:
             "ground_truth": ground_truth.data if ground_truth is not None else None,
         }
 
+    def copy_ground_truth_from(self, other: "EventCache") -> int:
+        """
+        Import ``other``'s ground truth for events this cache already knows,
+        without touching seeds. Returns the number of records copied.
+
+        For running a second experiment over the same events with differently
+        enriched seeds: without this, the new cache has no truth, re-fetches it,
+        and silently re-measures. Outcomes that move between the two
+        measurements (HN points keep accruing) then make a "paired" comparison
+        unpaired — observed flipping one story's class from flop to viral.
+        """
+        copied = 0
+        for event_id, entry in self._data.items():
+            if event_id.startswith(_LIST_PREFIX) or "ground_truth" in entry:
+                continue
+            truth = other.get_ground_truth(event_id)
+            if truth is not None:
+                entry["ground_truth"] = truth.data
+                copied += 1
+        if copied:
+            self.save()
+        return copied
+
     def save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_text(json.dumps(self._data, indent=2), "utf-8")
