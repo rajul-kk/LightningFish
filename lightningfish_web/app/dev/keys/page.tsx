@@ -1,6 +1,8 @@
 "use client";
 import { useUser } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import { HAS_CLERK } from "@/lib/clerk";
 
 interface ApiKey {
   id: string;
@@ -11,7 +13,32 @@ interface ApiKey {
 
 const PY = process.env.NEXT_PUBLIC_PYTHON_SERVICE_URL ?? "http://localhost:8000";
 
+/**
+ * Auth is optional app-wide, so this page must not assume a <ClerkProvider>
+ * exists. Calling useUser() without one throws at prerender and fails the
+ * whole build — so the hook lives in the inner component, reached only when
+ * Clerk is actually configured.
+ */
 export default function ApiKeysPage() {
+  if (!HAS_CLERK) {
+    return (
+      <div className="max-w-xl mx-auto px-6 py-24 text-center">
+        <h1 className="text-2xl font-semibold mb-2">API Keys</h1>
+        <p className="text-sm text-neutral-500 mb-6">
+          Sign-in is not configured on this deployment, so API keys are
+          unavailable. Set <code className="font-mono text-xs">NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</code>{" "}
+          and <code className="font-mono text-xs">CLERK_SECRET_KEY</code> to enable it.
+        </p>
+        <Link href="/" className="text-sm text-neutral-900 underline underline-offset-2">
+          Back to simulations
+        </Link>
+      </div>
+    );
+  }
+  return <ApiKeysInner />;
+}
+
+function ApiKeysInner() {
   const { user } = useUser();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [name, setName] = useState("");

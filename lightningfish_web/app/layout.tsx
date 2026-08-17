@@ -1,18 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { HAS_CLERK } from "@/lib/clerk";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Lightningfish",
-  description: "Multi-agent opinion simulation for finance and code review",
+  description: "Multi-agent opinion simulation for markets, code review, and Hacker News",
 };
-
-// Clerk is optional: if NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is a real key the full
-// auth UI is rendered; without it (or with the placeholder) public pages still work.
-const CLERK_KEY = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
-const HAS_CLERK =
-  CLERK_KEY.startsWith("pk_") &&
-  CLERK_KEY !== "pk_test_bGlnaHRuaW5nZmlzaC5sb2NhbGhvc3Qk";
 
 async function AuthNav() {
   if (!HAS_CLERK) return null;

@@ -64,7 +64,7 @@ export interface Simulation {
   n_rounds: number;
 }
 
-export type DomainId = "finance" | "coding";
+export type DomainId = "finance" | "coding" | "hn";
 
 export interface ModelOption {
   id: string;
@@ -140,6 +140,15 @@ export const CODING_ARCHETYPES: ArchetypeMeta[] = [
   { name: "CIBot",                  defaultProportion: 0.12, description: "Deterministic — CI pass rate only" },
 ];
 
+export const HN_ARCHETYPES: ArchetypeMeta[] = [
+  { name: "CasualLurkerVoter",     defaultProportion: 0.30, description: "Low-conviction upvoter, moderate herding" },
+  { name: "EarlyAdopterHypeBeast", defaultProportion: 0.18, description: "Low resistance, amplifies early momentum" },
+  { name: "ContrarianSkeptic",     defaultProportion: 0.15, description: "High resistance, pushes against the crowd" },
+  { name: "DomainExpertPedant",    defaultProportion: 0.15, description: "High influence, technical scrutiny" },
+  { name: "GreybeardCynic",        defaultProportion: 0.12, description: "Most resistant, strongly contrarian" },
+  { name: "ShowHNFounder",         defaultProportion: 0.10, description: "Enthusiastic builder, high recency bias" },
+];
+
 export interface DomainMeta {
   id: DomainId;
   label: string;
@@ -148,6 +157,29 @@ export interface DomainMeta {
   positivePole: string;
   inputLabel: string;
   inputPlaceholder: string;
+  /** Helper text under the input. */
+  inputHint: string;
+  /** Multi-line textarea rather than a single-line input. */
+  multiline: boolean;
+  archetypes: ArchetypeMeta[];
+  example: { label: string; input: string };
+  /** Turns the textbox contents into the adapter's raw_input payload. */
+  buildRawInput: (raw: string) => Record<string, unknown>;
+  /**
+   * Shown alongside results when backtesting found the domain does not beat
+   * its baselines. Being quiet about that would be overclaiming.
+   */
+  accuracyNote?: string;
+}
+
+/** Accepts a news.ycombinator.com item URL or a bare story id. */
+function parseHnStoryId(raw: string): number {
+  const trimmed = raw.trim();
+  const fromUrl = trimmed.match(/[?&]id=(\d+)/);
+  if (fromUrl) return Number(fromUrl[1]);
+  const bare = trimmed.match(/^(\d+)$/);
+  if (bare) return Number(bare[1]);
+  return NaN;
 }
 
 export const DOMAINS: DomainMeta[] = [
@@ -160,6 +192,25 @@ export const DOMAINS: DomainMeta[] = [
     positivePole: "Bullish",
     inputLabel: "Stock ticker",
     inputPlaceholder: "e.g. AAPL, or paste a news excerpt",
+    inputHint:
+      "First line: ticker (e.g. TSLA). Second line onwards: any context — or leave blank to use live headlines.",
+    multiline: true,
+    archetypes: FINANCE_ARCHETYPES,
+    example: {
+      label: "Try AAPL earnings",
+      input:
+        "AAPL\n\nApple beat Q4 earnings estimates, reporting revenue of $124.3B versus the $122.6B consensus. EPS came in at $1.64, above the $1.60 expected. iPhone sales surprised to the upside.",
+    },
+    buildRawInput: (raw) => {
+      const lines = raw.trim().split("\n");
+      const ticker = lines[0]?.trim().toUpperCase() ?? "";
+      const filingText = lines.slice(1).join("\n").trim();
+      return {
+        ticker,
+        filing_text: filingText || `Simulation for ${ticker}`,
+        filing_date: new Date().toISOString().split("T")[0],
+      };
+    },
   },
   {
     id: "coding",
@@ -170,5 +221,35 @@ export const DOMAINS: DomainMeta[] = [
     positivePole: "Approve",
     inputLabel: "GitHub PR URL",
     inputPlaceholder: "https://github.com/owner/repo/pull/123",
+    inputHint: "Any public GitHub pull request URL works.",
+    multiline: false,
+    archetypes: CODING_ARCHETYPES,
+    example: {
+      label: "Try an open-source PR",
+      input: "https://github.com/pallets/flask/pull/5489",
+    },
+    buildRawInput: (raw) => ({ pr_url: raw.trim() }),
+    accuracyNote:
+      "Backtested on real merged/closed PRs, this domain does not beat a content-free baseline — the PR metadata a seed can see does not determine whether maintainers merge it. Read the deliberation, not the verdict.",
+  },
+  {
+    id: "hn",
+    label: "Will Hacker News upvote this?",
+    description:
+      "Paste a Hacker News story link. Lurkers, hype-beasts, cynics and domain pedants react in turn, herding or splitting as the thread develops.",
+    negativePole: "Flop",
+    positivePole: "Viral",
+    inputLabel: "Hacker News story URL or ID",
+    inputPlaceholder: "https://news.ycombinator.com/item?id=44281944",
+    inputHint: "A news.ycombinator.com item link, or just the numeric story id.",
+    multiline: false,
+    archetypes: HN_ARCHETYPES,
+    example: {
+      label: "Try a front-page story",
+      input: "https://news.ycombinator.com/item?id=44281944",
+    },
+    buildRawInput: (raw) => ({ story_id: parseHnStoryId(raw) }),
+    accuracyNote:
+      "Measured against 200 real stories, this simulation predicts reception at roughly chance (51.5%) while author karma alone reaches 62.5%. HN outcomes are driven by who posts and who replies early, not by what the model reads. Treat the output as a narrative, not a forecast.",
   },
 ];

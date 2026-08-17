@@ -6,8 +6,6 @@ import { useUser } from "@clerk/nextjs";
 import {
   DOMAINS,
   MODELS,
-  FINANCE_ARCHETYPES,
-  CODING_ARCHETYPES,
   type ArchetypeMeta,
   type ModelOption,
   type LocalStatus,
@@ -30,17 +28,6 @@ function estimateCost(n_agents: number, n_rounds: number, model: ModelOption): s
   return (inputCost + outputCost).toFixed(3);
 }
 
-const EXAMPLES: Record<string, { label: string; input: string }> = {
-  finance: {
-    label: "Try AAPL earnings",
-    input: "AAPL\n\nApple beat Q4 earnings estimates, reporting revenue of $124.3B versus the $122.6B consensus. EPS came in at $1.64, above the $1.60 expected. iPhone sales surprised to the upside.",
-  },
-  coding: {
-    label: "Try an open-source PR",
-    input: "https://github.com/pallets/flask/pull/5489",
-  },
-};
-
 function normalizedConfig(
   archetypes: ArchetypeMeta[],
   enabled: Set<string>,
@@ -61,7 +48,10 @@ export default function SimulatePage() {
   const { user } = useUser();
 
   const domainMeta = DOMAINS.find((d) => d.id === domain);
-  const archetypes = domain === "finance" ? FINANCE_ARCHETYPES : CODING_ARCHETYPES;
+  // Empty (not a fallback to another domain's list) when the id is unknown:
+  // the hooks below run before the guard, and silently showing some other
+  // domain's archetypes is worse than showing none.
+  const archetypes = domainMeta?.archetypes ?? [];
 
   const [rawInput, setRawInput] = useState("");
   const [nAgents, setNAgents] = useState(300);
@@ -89,6 +79,8 @@ export default function SimulatePage() {
       </div>
     );
   }
+  // Narrowed alias so the handlers below don't each need a null check.
+  const meta = domainMeta;
 
   async function probeLocal() {
     setProbingLocal(true);
@@ -116,17 +108,7 @@ export default function SimulatePage() {
   }
 
   function buildRawInput(): Record<string, unknown> {
-    if (domain === "finance") {
-      const lines = rawInput.trim().split("\n");
-      const ticker = lines[0]?.trim().toUpperCase() ?? "";
-      const filingText = lines.slice(1).join("\n").trim();
-      return {
-        ticker,
-        filing_text: filingText || `Simulation for ${ticker}`,
-        filing_date: new Date().toISOString().split("T")[0],
-      };
-    }
-    return { pr_url: rawInput.trim() };
+    return meta.buildRawInput(rawInput);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -162,49 +144,51 @@ export default function SimulatePage() {
         <Link href="/" className="text-sm text-neutral-400 hover:text-neutral-700 transition-colors">
           &larr; Back
         </Link>
-        <h1 className="text-2xl font-semibold mt-4 mb-1">{domainMeta.label}</h1>
-        <p className="text-neutral-500 text-sm">{domainMeta.description}</p>
+        <h1 className="text-2xl font-semibold mt-4 mb-1">{meta.label}</h1>
+        <p className="text-neutral-500 text-sm">{meta.description}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Seed input */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium">{domainMeta.inputLabel}</label>
-            {EXAMPLES[domain] && (
+            <label className="text-sm font-medium">{meta.inputLabel}</label>
+            {meta.example && (
               <button
                 type="button"
-                onClick={() => setRawInput(EXAMPLES[domain].input)}
+                onClick={() => setRawInput(meta.example.input)}
                 className="text-xs text-neutral-400 hover:text-neutral-700 underline underline-offset-2 transition-colors"
               >
-                {EXAMPLES[domain].label}
+                {meta.example.label}
               </button>
             )}
           </div>
-          {domain === "finance" ? (
+          {meta.multiline ? (
             <textarea
               className="w-full border border-neutral-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-neutral-400 resize-none"
               rows={5}
-              placeholder={"AAPL\n\nOptional: paste any news, filing excerpt, or earnings summary. Leave blank and we'll use recent headlines automatically."}
+              placeholder={meta.inputPlaceholder}
               value={rawInput}
               onChange={(e) => setRawInput(e.target.value)}
               required
             />
           ) : (
             <input
-              type="url"
+              type="text"
               className="w-full border border-neutral-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-neutral-400"
-              placeholder={domainMeta.inputPlaceholder}
+              placeholder={meta.inputPlaceholder}
               value={rawInput}
               onChange={(e) => setRawInput(e.target.value)}
               required
             />
           )}
-          <p className="text-xs text-neutral-400 mt-1">
-            {domain === "finance"
-              ? "First line: ticker (e.g. TSLA). Second line onwards: any context — or leave blank to use live headlines."
-              : "Any public GitHub pull request URL works."}
-          </p>
+          <p className="text-xs text-neutral-400 mt-1">{meta.inputHint}</p>
+          {meta.accuracyNote && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
+              <span className="font-medium">Accuracy: </span>
+              {meta.accuracyNote}
+            </p>
+          )}
         </div>
 
         {/* Simulation parameters */}

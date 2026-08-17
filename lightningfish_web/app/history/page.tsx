@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
+import { HAS_CLERK } from "@/lib/clerk";
 
 async function getHistory(userId: string) {
   const pyUrl = process.env.PYTHON_SERVICE_URL ?? "http://localhost:8000";
@@ -42,6 +43,23 @@ function statusBadge(status: string) {
 }
 
 export default async function HistoryPage() {
+  // Same contract as the layout: without Clerk configured there is no provider
+  // and no auth() to call, so degrade to a notice instead of throwing.
+  if (!HAS_CLERK) {
+    return (
+      <div className="max-w-3xl mx-auto px-6 py-24 text-center">
+        <h1 className="text-2xl font-semibold mb-2">Simulation history</h1>
+        <p className="text-sm text-neutral-500 mb-6">
+          Sign-in is not configured on this deployment, so per-user history is
+          unavailable.
+        </p>
+        <Link href="/" className="text-sm text-neutral-900 underline underline-offset-2">
+          Back to simulations
+        </Link>
+      </div>
+    );
+  }
+
   const { userId } = await auth();
   if (!userId) return null;
 
