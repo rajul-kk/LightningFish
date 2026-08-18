@@ -22,24 +22,12 @@ async function getHistory(userId: string) {
 
 function statusBadge(status: string) {
   if (status === "complete") {
-    return (
-      <span className="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
-        complete
-      </span>
-    );
+    return <span className="pill-pos">complete</span>;
   }
   if (status === "running") {
-    return (
-      <span className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">
-        running
-      </span>
-    );
+    return <span className="pill-spark">running</span>;
   }
-  return (
-    <span className="text-xs font-medium text-neutral-400 bg-neutral-50 border border-neutral-100 px-2 py-0.5 rounded-full">
-      {status}
-    </span>
-  );
+  return <span className="pill-neutral">{status}</span>;
 }
 
 export default async function HistoryPage() {
@@ -48,12 +36,12 @@ export default async function HistoryPage() {
   if (!HAS_CLERK) {
     return (
       <div className="max-w-3xl mx-auto px-6 py-24 text-center">
-        <h1 className="text-2xl font-semibold mb-2">Simulation history</h1>
-        <p className="text-sm text-neutral-500 mb-6">
+        <h1 className="font-display text-2xl text-fg mb-2">Simulation history</h1>
+        <p className="text-sm text-fg-muted mb-6">
           Sign-in is not configured on this deployment, so per-user history is
           unavailable.
         </p>
-        <Link href="/" className="text-sm text-neutral-900 underline underline-offset-2">
+        <Link href="/" className="text-sm text-glow underline decoration-glow/30 underline-offset-2">
           Back to simulations
         </Link>
       </div>
@@ -67,57 +55,57 @@ export default async function HistoryPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
-      <h1 className="text-2xl font-semibold mb-8">Simulation history</h1>
+      <h1 className="font-display text-2xl text-fg mb-8">Simulation history</h1>
 
       {simulations.length === 0 ? (
-        <div className="text-center py-16 text-neutral-400">
+        <div className="text-center py-16 text-fg-faint">
           <p className="mb-4">No simulations yet.</p>
           <Link
             href="/"
-            className="text-sm text-neutral-700 underline underline-offset-2"
+            className="text-sm text-glow underline decoration-glow/30 underline-offset-2"
           >
             Run your first simulation
           </Link>
         </div>
       ) : (
-        <div className="border border-neutral-200 rounded-xl overflow-hidden">
+        <div className="surface overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-neutral-50 border-b border-neutral-200">
+            <thead className="bg-ink-950/60 border-b border-ink-700">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-medium text-neutral-400 uppercase tracking-wider">
+                <th className="text-left px-4 py-3 eyebrow font-normal">
                   Event
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-neutral-400 uppercase tracking-wider">
+                <th className="text-left px-4 py-3 eyebrow font-normal">
                   Domain
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-neutral-400 uppercase tracking-wider">
+                <th className="text-left px-4 py-3 eyebrow font-normal">
                   Status
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-neutral-400 uppercase tracking-wider">
+                <th className="text-right px-4 py-3 eyebrow font-normal">
                   Cost
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-neutral-400 uppercase tracking-wider">
+                <th className="text-right px-4 py-3 eyebrow font-normal">
                   Date
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100">
+            <tbody className="divide-y divide-ink-700">
               {simulations.map((sim) => (
-                <tr key={sim.id} className="hover:bg-neutral-50 transition-colors">
+                <tr key={sim.id} className="hover:bg-ink-800/50 transition-colors">
                   <td className="px-4 py-3">
                     <a
                       href={`/report/${sim.id}`}
-                      className="text-neutral-900 hover:underline underline-offset-2 line-clamp-1"
+                      className="text-fg hover:text-glow hover:underline underline-offset-2 line-clamp-1 transition-colors"
                     >
                       {sim.result_json?.seed_summary ?? sim.id.slice(0, 8) + "..."}
                     </a>
                   </td>
-                  <td className="px-4 py-3 text-neutral-500">{sim.domain_id}</td>
+                  <td className="px-4 py-3 text-fg-muted">{sim.domain_id}</td>
                   <td className="px-4 py-3">{statusBadge(sim.status)}</td>
-                  <td className="px-4 py-3 text-right text-neutral-500 tabular-nums">
+                  <td className="px-4 py-3 text-right text-fg-muted tabular-nums font-mono">
                     ${Number(sim.cost_usd).toFixed(4)}
                   </td>
-                  <td className="px-4 py-3 text-right text-neutral-400 tabular-nums text-xs">
+                  <td className="px-4 py-3 text-right text-fg-faint tabular-nums text-xs font-mono">
                     {new Date(sim.created_at).toLocaleDateString()}
                   </td>
                 </tr>

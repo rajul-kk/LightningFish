@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { HAS_CLERK } from "@/lib/clerk";
 import {
   DOMAINS,
   MODELS,
@@ -42,10 +43,29 @@ function normalizedConfig(
   return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, v / total]));
 }
 
+/**
+ * Auth is optional app-wide (see lib/clerk.ts): without a real Clerk key
+ * there's no <ClerkProvider>, and calling useUser() without one throws
+ * ("useUser can only be used within the <ClerkProvider />"). Unlike
+ * /history and /dev/keys, this route is dynamic (no generateStaticParams),
+ * so `next build` never prerenders it and doesn't catch the crash — it only
+ * showed up navigating here at runtime. useUser() is only ever called from
+ * WithClerkUser below, which only mounts when HAS_CLERK is true, so the hook
+ * is always called on every render of whichever component owns it (rules of
+ * hooks satisfied) while the page as a whole works with or without Clerk.
+ */
 export default function SimulatePage() {
+  return HAS_CLERK ? <WithClerkUser /> : <SimulatePageBody userId="anonymous" />;
+}
+
+function WithClerkUser() {
+  const { user } = useUser();
+  return <SimulatePageBody userId={user?.id ?? "anonymous"} />;
+}
+
+function SimulatePageBody({ userId }: { userId: string }) {
   const { domain } = useParams<{ domain: string }>();
   const router = useRouter();
-  const { user } = useUser();
 
   const domainMeta = DOMAINS.find((d) => d.id === domain);
   // Empty (not a fallback to another domain's list) when the id is unknown:
@@ -74,7 +94,7 @@ export default function SimulatePage() {
 
   if (!domainMeta) {
     return (
-      <div className="max-w-xl mx-auto px-6 py-24 text-neutral-500">
+      <div className="max-w-xl mx-auto px-6 py-24 text-fg-muted">
         Unknown domain: {domain}
       </div>
     );
@@ -119,7 +139,7 @@ export default function SimulatePage() {
       const agent_config = normalizedConfig(archetypes, enabled, customProps);
       const { simulation_id } = await createSimulation({
         domain_id: domain,
-        user_id: user?.id ?? "anonymous",
+        user_id: userId,
         raw_input: buildRawInput(),
         n_agents: nAgents,
         n_rounds: nRounds,
@@ -141,23 +161,23 @@ export default function SimulatePage() {
   return (
     <div className="max-w-xl mx-auto px-6 py-16">
       <div className="mb-8">
-        <Link href="/" className="text-sm text-neutral-400 hover:text-neutral-700 transition-colors">
+        <Link href="/" className="text-sm text-fg-faint hover:text-glow transition-colors">
           &larr; Back
         </Link>
-        <h1 className="text-2xl font-semibold mt-4 mb-1">{meta.label}</h1>
-        <p className="text-neutral-500 text-sm">{meta.description}</p>
+        <h1 className="font-display text-3xl text-fg mt-4 mb-1">{meta.label}</h1>
+        <p className="text-fg-muted text-sm">{meta.description}</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-7">
         {/* Seed input */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium">{meta.inputLabel}</label>
+            <label className="text-sm font-medium text-fg">{meta.inputLabel}</label>
             {meta.example && (
               <button
                 type="button"
                 onClick={() => setRawInput(meta.example.input)}
-                className="text-xs text-neutral-400 hover:text-neutral-700 underline underline-offset-2 transition-colors"
+                className="text-xs text-fg-faint hover:text-glow underline decoration-fg-faint/40 hover:decoration-glow underline-offset-2 transition-colors"
               >
                 {meta.example.label}
               </button>
@@ -165,7 +185,7 @@ export default function SimulatePage() {
           </div>
           {meta.multiline ? (
             <textarea
-              className="w-full border border-neutral-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-neutral-400 resize-none"
+              className="field resize-none"
               rows={5}
               placeholder={meta.inputPlaceholder}
               value={rawInput}
@@ -175,17 +195,17 @@ export default function SimulatePage() {
           ) : (
             <input
               type="text"
-              className="w-full border border-neutral-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-neutral-400"
+              className="field"
               placeholder={meta.inputPlaceholder}
               value={rawInput}
               onChange={(e) => setRawInput(e.target.value)}
               required
             />
           )}
-          <p className="text-xs text-neutral-400 mt-1">{meta.inputHint}</p>
+          <p className="text-xs text-fg-faint mt-1.5">{meta.inputHint}</p>
           {meta.accuracyNote && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
-              <span className="font-medium">Accuracy: </span>
+            <p className="text-xs text-spark bg-spark-dim border border-spark/25 rounded-lg px-3 py-2.5 mt-3 leading-relaxed">
+              <span className="font-semibold">Accuracy: </span>
               {meta.accuracyNote}
             </p>
           )}
@@ -193,7 +213,7 @@ export default function SimulatePage() {
 
         {/* Simulation parameters */}
         <div>
-          <label className="block text-sm font-medium mb-3">Parameters</label>
+          <label className="eyebrow block mb-3">Parameters</label>
           <div className="flex gap-2 mb-4">
             {(Object.entries(PRESETS) as [keyof typeof PRESETS, (typeof PRESETS)[keyof typeof PRESETS]][]).map(
               ([key, preset]) => (
@@ -201,10 +221,10 @@ export default function SimulatePage() {
                   key={key}
                   type="button"
                   onClick={() => { setNAgents(preset.n_agents); setNRounds(preset.n_rounds); }}
-                  className={`text-xs px-3 py-1.5 rounded border transition-colors ${
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                     nAgents === preset.n_agents && nRounds === preset.n_rounds
-                      ? "border-neutral-800 text-neutral-900 bg-neutral-50"
-                      : "border-neutral-200 text-neutral-500 hover:border-neutral-400"
+                      ? "border-glow/50 text-glow bg-glow-dim"
+                      : "border-ink-600 text-fg-muted hover:border-ink-500"
                   }`}
                 >
                   {key.charAt(0).toUpperCase() + key.slice(1)}
@@ -212,29 +232,29 @@ export default function SimulatePage() {
               )
             )}
           </div>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
-              <div className="flex justify-between text-xs text-neutral-500 mb-1">
-                <span>Agents</span><span>{nAgents}</span>
+              <div className="flex justify-between text-xs text-fg-muted mb-1.5">
+                <span>Agents</span><span className="font-mono text-fg">{nAgents}</span>
               </div>
               <input type="range" min={50} max={1000} step={50} value={nAgents}
                 onChange={(e) => setNAgents(Number(e.target.value))}
-                className="w-full accent-neutral-800" />
+                className="w-full" />
             </div>
             <div>
-              <div className="flex justify-between text-xs text-neutral-500 mb-1">
-                <span>Rounds</span><span>{nRounds}</span>
+              <div className="flex justify-between text-xs text-fg-muted mb-1.5">
+                <span>Rounds</span><span className="font-mono text-fg">{nRounds}</span>
               </div>
               <input type="range" min={4} max={20} step={2} value={nRounds}
                 onChange={(e) => setNRounds(Number(e.target.value))}
-                className="w-full accent-neutral-800" />
+                className="w-full" />
             </div>
           </div>
         </div>
 
         {/* Model picker */}
         <div>
-          <label className="block text-sm font-medium mb-2">Model</label>
+          <label className="eyebrow block mb-2">Model</label>
           <div className="grid grid-cols-3 gap-2">
             {MODELS.map((m) => (
               <button
@@ -243,27 +263,27 @@ export default function SimulatePage() {
                 onClick={() => setModel(m)}
                 className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
                   model.id === m.id
-                    ? "border-neutral-800 bg-neutral-50"
-                    : "border-neutral-200 hover:border-neutral-400"
+                    ? "border-glow/50 bg-glow-dim"
+                    : "border-ink-700 hover:border-ink-500"
                 }`}
               >
-                <div className="font-medium text-xs">{m.label}</div>
-                <div className="text-neutral-400 text-xs mt-0.5">{m.description}</div>
-                <div className="text-neutral-300 text-xs mt-1">${m.inputCostPerM}/M</div>
+                <div className="font-medium text-xs text-fg">{m.label}</div>
+                <div className="text-fg-faint text-xs mt-0.5">{m.description}</div>
+                <div className="text-fg-faint/70 text-xs mt-1 font-mono">${m.inputCostPerM}/M</div>
               </button>
             ))}
           </div>
-          <p className="text-xs text-neutral-400 mt-2">
+          <p className="text-xs text-fg-faint mt-2 font-mono">
             Estimated cost: ~${estimateCost(nAgents, nRounds, model)}
           </p>
         </div>
 
         {/* Local / Self-hosted */}
         <div>
-          <label className="block text-sm font-medium mb-2">
+          <label className="eyebrow block mb-2">
             Run on your own GPU / CPU
           </label>
-          <div className="border border-neutral-200 rounded-xl overflow-hidden">
+          <div className="surface overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3">
               <input
                 type="checkbox"
@@ -273,23 +293,22 @@ export default function SimulatePage() {
                   setUseLocalModel(e.target.checked);
                   setLocalStatus(null);
                 }}
-                className="accent-neutral-800"
               />
               <label
                 htmlFor="use-local"
-                className="text-sm text-neutral-700 flex-1 cursor-pointer"
+                className="text-sm text-fg flex-1 cursor-pointer"
               >
                 Use local inference server (Ollama)
               </label>
               {useLocalModel && localStatus && (
                 <span
-                  className={`text-xs px-2 py-0.5 rounded-full border ${
+                  className={
                     !localStatus.available
-                      ? "bg-red-50 border-red-200 text-red-600"
+                      ? "pill-neg"
                       : localStatus.gpu
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                      : "bg-neutral-100 border-neutral-200 text-neutral-600"
-                  }`}
+                      ? "pill-pos"
+                      : "pill-neutral"
+                  }
                 >
                   {!localStatus.available
                     ? "offline"
@@ -301,9 +320,9 @@ export default function SimulatePage() {
             </div>
 
             {useLocalModel && (
-              <div className="border-t border-neutral-100 px-4 py-3 space-y-3">
+              <div className="border-t border-ink-700 px-4 py-3 space-y-3">
                 <div>
-                  <label className="block text-xs text-neutral-500 mb-1">
+                  <label className="block text-xs text-fg-muted mb-1">
                     Endpoint
                   </label>
                   <div className="flex gap-2">
@@ -314,27 +333,27 @@ export default function SimulatePage() {
                         setLocalBaseUrl(e.target.value);
                         setLocalStatus(null);
                       }}
-                      className="flex-1 border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-neutral-400"
+                      className="field flex-1 py-2"
                       placeholder="http://localhost:11434/v1"
                     />
                     <button
                       type="button"
                       onClick={probeLocal}
                       disabled={probingLocal}
-                      className="text-xs px-3 py-2 border border-neutral-200 rounded-lg hover:border-neutral-400 transition-colors disabled:opacity-50 whitespace-nowrap"
+                      className="btn-ghost text-xs px-3 py-2 whitespace-nowrap"
                     >
                       {probingLocal ? "..." : "Test"}
                     </button>
                   </div>
                   {localStatus && !localStatus.available && (
-                    <p className="text-xs text-red-500 mt-1">
+                    <p className="text-xs text-coral mt-1.5">
                       Could not reach server. Is Ollama running?
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-xs text-neutral-500 mb-1">
+                  <label className="block text-xs text-fg-muted mb-1">
                     Model
                   </label>
                   <div className="flex gap-1.5 flex-wrap mb-2">
@@ -343,10 +362,10 @@ export default function SimulatePage() {
                         key={m}
                         type="button"
                         onClick={() => setLocalModelName(m)}
-                        className={`text-xs px-2 py-1 rounded border transition-colors ${
+                        className={`text-xs px-2 py-1 rounded border transition-colors font-mono ${
                           localModelName === m
-                            ? "border-neutral-800 bg-neutral-50"
-                            : "border-neutral-200 hover:border-neutral-400"
+                            ? "border-glow/50 bg-glow-dim text-glow"
+                            : "border-ink-600 text-fg-muted hover:border-ink-500"
                         }`}
                       >
                         {m}
@@ -357,29 +376,29 @@ export default function SimulatePage() {
                     type="text"
                     value={localModelName}
                     onChange={(e) => setLocalModelName(e.target.value)}
-                    className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-neutral-400"
+                    className="field py-2 font-mono"
                     placeholder="Custom model name"
                   />
                 </div>
 
                 {localStatus?.models.length ? (
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-xs text-fg-faint">
                     Loaded: {localStatus.models.join(", ")}
                   </p>
                 ) : null}
 
-                <p className="text-xs text-neutral-400">
+                <p className="text-xs text-fg-faint leading-relaxed">
                   Zero API cost. Install Ollama at{" "}
                   <a
                     href="https://ollama.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="underline underline-offset-2 hover:text-neutral-700"
+                    className="text-glow/90 underline decoration-glow/30 underline-offset-2 hover:text-glow"
                   >
                     ollama.com
                   </a>
                   {", then run "}
-                  <code className="bg-neutral-100 px-1 rounded">
+                  <code className="bg-ink-800 text-fg px-1.5 py-0.5 rounded font-mono">
                     ollama pull llama3.2
                   </code>
                   .
@@ -394,20 +413,20 @@ export default function SimulatePage() {
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
-            className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-800 transition-colors"
+            className="flex items-center gap-1.5 text-sm text-fg-muted hover:text-fg transition-colors"
           >
-            <span className="text-xs">{showAdvanced ? "▾" : "▸"}</span>
+            <span className="text-xs text-glow">{showAdvanced ? "▾" : "▸"}</span>
             Agent mix
             {enabled.size < archetypes.length && (
-              <span className="text-xs text-neutral-400">
+              <span className="text-xs text-fg-faint">
                 ({enabled.size}/{archetypes.length} active)
               </span>
             )}
           </button>
 
           {showAdvanced && (
-            <div className="mt-3 border border-neutral-200 rounded-xl overflow-hidden">
-              <div className="divide-y divide-neutral-100">
+            <div className="mt-3 surface overflow-hidden">
+              <div className="divide-y divide-ink-700">
                 {archetypes.map((a) => {
                   const isOn = enabled.has(a.name);
                   const prop = customProps[a.name] ?? a.defaultProportion;
@@ -421,16 +440,15 @@ export default function SimulatePage() {
                           type="checkbox"
                           checked={isOn}
                           onChange={() => toggleArchetype(a.name)}
-                          className="accent-neutral-800"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">{a.name}</span>
-                            <span className="text-xs text-neutral-400 tabular-nums">
+                            <span className="text-sm font-medium text-fg">{a.name}</span>
+                            <span className="text-xs text-glow font-mono tabular-nums">
                               {isOn ? Math.round((prop / (totalEnabled || 1)) * 100) : 0}%
                             </span>
                           </div>
-                          <p className="text-xs text-neutral-400 truncate">{a.description}</p>
+                          <p className="text-xs text-fg-faint truncate">{a.description}</p>
                         </div>
                       </div>
                       {isOn && (
@@ -446,15 +464,15 @@ export default function SimulatePage() {
                               [a.name]: Number(e.target.value),
                             }))
                           }
-                          className="w-full mt-2 accent-neutral-600"
+                          className="w-full mt-2.5"
                         />
                       )}
                     </div>
                   );
                 })}
               </div>
-              <div className="px-4 py-2.5 bg-neutral-50 border-t border-neutral-100">
-                <p className="text-xs text-neutral-400">
+              <div className="px-4 py-2.5 bg-ink-950/40 border-t border-ink-700">
+                <p className="text-xs text-fg-faint">
                   Proportions are normalized at run time. Disabling an archetype removes it entirely.
                 </p>
               </div>
@@ -463,7 +481,7 @@ export default function SimulatePage() {
         </div>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">
+          <p className="text-sm text-coral bg-coral-dim border border-coral/25 rounded-lg px-4 py-3">
             {error}
           </p>
         )}
@@ -471,7 +489,7 @@ export default function SimulatePage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-neutral-900 text-white text-sm font-medium py-3 rounded-lg hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-primary w-full text-sm"
         >
           {loading ? "Starting simulation..." : "Run simulation"}
         </button>

@@ -23,13 +23,13 @@ export default function ApiKeysPage() {
   if (!HAS_CLERK) {
     return (
       <div className="max-w-xl mx-auto px-6 py-24 text-center">
-        <h1 className="text-2xl font-semibold mb-2">API Keys</h1>
-        <p className="text-sm text-neutral-500 mb-6">
+        <h1 className="font-display text-2xl text-fg mb-2">API Keys</h1>
+        <p className="text-sm text-fg-muted mb-6">
           Sign-in is not configured on this deployment, so API keys are
-          unavailable. Set <code className="font-mono text-xs">NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</code>{" "}
-          and <code className="font-mono text-xs">CLERK_SECRET_KEY</code> to enable it.
+          unavailable. Set <code className="font-mono text-xs bg-ink-800 px-1.5 py-0.5 rounded">NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</code>{" "}
+          and <code className="font-mono text-xs bg-ink-800 px-1.5 py-0.5 rounded">CLERK_SECRET_KEY</code> to enable it.
         </p>
-        <Link href="/" className="text-sm text-neutral-900 underline underline-offset-2">
+        <Link href="/" className="text-sm text-glow underline decoration-glow/30 underline-offset-2">
           Back to simulations
         </Link>
       </div>
@@ -87,31 +87,31 @@ function ApiKeysInner() {
 
   return (
     <div className="max-w-xl mx-auto px-6 py-12">
-      <h1 className="text-2xl font-semibold mb-2">API Keys</h1>
-      <p className="text-sm text-neutral-500 mb-8">
+      <h1 className="font-display text-2xl text-fg mb-2">API Keys</h1>
+      <p className="text-sm text-fg-muted mb-8">
         Use API keys to access the Lightningfish simulation API from your own
         applications.
       </p>
 
       {newKey && (
-        <div className="mb-6 border border-emerald-200 bg-emerald-50 rounded-xl p-4">
-          <p className="text-xs font-medium text-emerald-700 mb-2">
+        <div className="mb-6 border border-glow/30 bg-glow-dim rounded-xl p-4">
+          <p className="text-xs font-medium text-glow mb-2">
             Key created — copy it now, it won&apos;t be shown again.
           </p>
-          <code className="text-sm font-mono text-emerald-900 break-all">
+          <code className="text-sm font-mono text-fg break-all">
             {newKey}
           </code>
           <button
             onClick={() => setNewKey(null)}
-            className="mt-3 text-xs text-emerald-600 underline underline-offset-2 block"
+            className="mt-3 text-xs text-glow underline decoration-glow/30 underline-offset-2 block hover:text-glow-bright"
           >
             Dismiss
           </button>
         </div>
       )}
 
-      <div className="border border-neutral-200 rounded-xl p-5 mb-6">
-        <h2 className="text-sm font-medium mb-3">Create new key</h2>
+      <div className="surface p-5 mb-6">
+        <h2 className="text-sm font-medium text-fg mb-3">Create new key</h2>
         <div className="flex gap-2">
           <input
             type="text"
@@ -119,44 +119,44 @@ function ApiKeysInner() {
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && createKey()}
             placeholder="Key name (e.g. production)"
-            className="flex-1 border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-neutral-400"
+            className="field flex-1 py-2"
           />
           <button
             onClick={createKey}
             disabled={loading || !name.trim()}
-            className="bg-neutral-900 text-white text-sm px-4 py-2 rounded-lg disabled:opacity-40 hover:bg-neutral-700 transition-colors"
+            className="btn-primary text-sm px-4 py-2"
           >
             {loading ? "Creating..." : "Create"}
           </button>
         </div>
-        {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+        {error && <p className="text-xs text-coral mt-2">{error}</p>}
       </div>
 
       {keys.length > 0 && (
-        <div className="border border-neutral-200 rounded-xl overflow-hidden">
+        <div className="surface overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-neutral-50 border-b border-neutral-200">
+            <thead className="bg-ink-950/60 border-b border-ink-700">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-medium text-neutral-400 uppercase tracking-wider">
+                <th className="text-left px-4 py-3 eyebrow font-normal">
                   Name
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-neutral-400 uppercase tracking-wider">
+                <th className="text-left px-4 py-3 eyebrow font-normal">
                   Created
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-neutral-400 uppercase tracking-wider">
+                <th className="text-left px-4 py-3 eyebrow font-normal">
                   Last used
                 </th>
                 <th />
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100">
+            <tbody className="divide-y divide-ink-700">
               {keys.map((key) => (
                 <tr key={key.id}>
-                  <td className="px-4 py-3 font-medium">{key.name}</td>
-                  <td className="px-4 py-3 text-neutral-400 text-xs tabular-nums">
+                  <td className="px-4 py-3 font-medium text-fg">{key.name}</td>
+                  <td className="px-4 py-3 text-fg-faint text-xs tabular-nums font-mono">
                     {new Date(key.created_at).toLocaleDateString()}
                   </td>
-                  <td className="px-4 py-3 text-neutral-400 text-xs">
+                  <td className="px-4 py-3 text-fg-faint text-xs font-mono">
                     {key.last_used_at
                       ? new Date(key.last_used_at).toLocaleDateString()
                       : "Never"}
@@ -164,7 +164,7 @@ function ApiKeysInner() {
                   <td className="px-4 py-3 text-right">
                     <button
                       onClick={() => deleteKey(key.id)}
-                      className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                      className="text-xs text-coral/80 hover:text-coral transition-colors"
                     >
                       Delete
                     </button>
@@ -177,7 +177,7 @@ function ApiKeysInner() {
       )}
 
       {keys.length === 0 && (
-        <p className="text-sm text-neutral-400 text-center py-6">
+        <p className="text-sm text-fg-faint text-center py-6">
           No API keys yet.
         </p>
       )}

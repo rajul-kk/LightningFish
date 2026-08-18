@@ -47,31 +47,31 @@ export default function LivePage() {
     <div className="max-w-2xl mx-auto px-6 py-12">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Simulation running</h1>
-          <p className="text-sm text-neutral-400 mt-1 font-mono">{simulationId}</p>
+          <h1 className="font-display text-xl text-fg">Simulation running</h1>
+          <p className="text-sm text-fg-faint mt-1 font-mono">{simulationId}</p>
         </div>
         {isComplete && (
-          <span className="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
+          <span className="pill-pos">
             Complete — redirecting...
           </span>
         )}
         {!isComplete && rounds.length > 0 && (
-          <span className="flex items-center gap-1.5 text-xs text-neutral-500">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+          <span className="flex items-center gap-1.5 text-xs text-fg-muted">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-glow shadow-[0_0_6px_rgba(63,235,184,0.8)] animate-pulse" />
             Live
           </span>
         )}
       </div>
 
       {error && (
-        <div className="mb-6 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+        <div className="mb-6 text-sm text-coral bg-coral-dim border border-coral/25 rounded-xl px-4 py-3">
           {error}
         </div>
       )}
 
       <div className="space-y-6">
-        <div className="border border-neutral-200 rounded-xl p-5">
-          <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">
+        <div className="surface p-5">
+          <h2 className="eyebrow mb-4">
             Opinion trajectory
           </h2>
           <OpinionChart
@@ -81,8 +81,8 @@ export default function LivePage() {
           />
         </div>
 
-        <div className="border border-neutral-200 rounded-xl p-5">
-          <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">
+        <div className="surface p-5">
+          <h2 className="eyebrow mb-4">
             Current distribution
           </h2>
           <DistributionBar
@@ -92,8 +92,8 @@ export default function LivePage() {
           />
         </div>
 
-        <div className="border border-neutral-200 rounded-xl p-5">
-          <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">
+        <div className="surface p-5">
+          <h2 className="eyebrow mb-4">
             Round activity
           </h2>
           <RoundFeed rounds={rounds} />
@@ -107,13 +107,13 @@ export default function LivePage() {
 
         {/* Herding indicator */}
         {latest?.herding_index !== undefined && (
-          <div className="border border-neutral-200 rounded-xl p-4 flex items-center justify-between text-sm">
+          <div className="surface p-4 flex items-center justify-between text-sm">
             <div>
-              <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">Herding index</span>
-              <div className="mt-1 font-semibold text-lg">
+              <span className="eyebrow">Herding index</span>
+              <div className="mt-1 font-display text-lg text-fg">
                 {(latest.herding_index * 100).toFixed(0)}%
               </div>
-              <div className="text-xs text-neutral-400">
+              <div className="text-xs text-fg-faint">
                 {(latest.herding_delta ?? 0) < -0.02
                   ? "Bifurcation — opinions diverging"
                   : latest.herding_index > 0.7
@@ -125,11 +125,11 @@ export default function LivePage() {
             </div>
             {latest.cascade_detected && (
               <div className="text-right">
-                <span className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-1 rounded-full">
+                <span className="pill-spark">
                   ⚡ Cascade
                 </span>
                 {latest.cascade_trigger_archetype && (
-                  <div className="text-xs text-neutral-400 mt-1">{latest.cascade_trigger_archetype}</div>
+                  <div className="text-xs text-fg-faint mt-1">{latest.cascade_trigger_archetype}</div>
                 )}
               </div>
             )}
@@ -138,30 +138,30 @@ export default function LivePage() {
 
         {/* Post feed */}
         {postFeed.length > 0 && (
-          <div className="border border-neutral-200 rounded-xl p-5">
-            <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">
+          <div className="surface p-5">
+            <h2 className="eyebrow mb-3">
               Agent posts (live)
             </h2>
             <div className="space-y-2 max-h-72 overflow-y-auto">
               {postFeed.map((post, i) => (
-                <div key={i} className="border border-neutral-100 rounded-lg p-3 text-sm">
+                <div key={i} className="border border-ink-700 rounded-lg p-3 text-sm bg-ink-950/40">
                   <div className="flex flex-wrap gap-1.5 items-center mb-1.5">
-                    <span className="font-medium text-xs text-neutral-600">{post.archetype}</span>
+                    <span className="font-medium text-xs text-fg-muted">{post.archetype}</span>
                     <span
-                      className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                      className={
                         post.stance === "bullish" || post.stance === "approve"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-red-50 text-red-700"
-                      }`}
+                          ? "pill-pos !py-0.5 !px-1.5"
+                          : "pill-neg !py-0.5 !px-1.5"
+                      }
                     >
                       {post.stance}
                     </span>
-                    <span className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded-full">
+                    <span className="text-xs bg-ink-800 text-fg-muted px-1.5 py-0.5 rounded-full">
                       {post.argument_tag}
                     </span>
-                    <span className="text-xs text-neutral-300 ml-auto">R{post.round}</span>
+                    <span className="text-xs text-fg-faint ml-auto font-mono">R{post.round}</span>
                   </div>
-                  <p className="text-neutral-700 text-xs leading-relaxed">{post.blurb}</p>
+                  <p className="text-fg-muted text-xs leading-relaxed">{post.blurb}</p>
                 </div>
               ))}
             </div>

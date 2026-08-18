@@ -25,7 +25,7 @@ function buckets(distribution: number[]) {
 export function DistributionBar({ distribution, negativePole, positivePole }: Props) {
   if (!distribution || distribution.length === 0) {
     return (
-      <div className="h-4 rounded-full bg-neutral-100" />
+      <div className="h-3 rounded-full bg-ink-800" />
     );
   }
 
@@ -33,21 +33,21 @@ export function DistributionBar({ distribution, negativePole, positivePole }: Pr
 
   return (
     <div>
-      <div className="flex rounded-full overflow-hidden h-3 gap-px">
+      <div className="flex rounded-full overflow-hidden h-3 gap-px bg-ink-950">
         <div
-          className="bg-red-400 transition-all duration-300"
+          className="bg-coral transition-all duration-300"
           style={{ width: `${negative}%` }}
         />
         <div
-          className="bg-neutral-200 transition-all duration-300"
+          className="bg-ink-600 transition-all duration-300"
           style={{ width: `${neutral}%` }}
         />
         <div
-          className="bg-emerald-400 transition-all duration-300"
+          className="bg-glow shadow-[0_0_10px_rgba(63,235,184,0.5)] transition-all duration-300"
           style={{ width: `${positive}%` }}
         />
       </div>
-      <div className="flex justify-between text-xs text-neutral-400 mt-1.5">
+      <div className="flex justify-between text-xs text-fg-faint mt-2 font-mono">
         <span>
           {negativePole} {counts.negative}
         </span>

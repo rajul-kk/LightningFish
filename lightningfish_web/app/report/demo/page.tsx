@@ -37,16 +37,16 @@ export default function DemoReportPage() {
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
       {/* Demo banner */}
-      <div className="mb-6 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
-        <span className="text-amber-600 text-xs font-medium uppercase tracking-wide">
+      <div className="mb-6 px-4 py-2.5 bg-spark-dim border border-spark/25 rounded-lg flex items-center gap-2">
+        <span className="text-spark text-xs font-medium uppercase tracking-wide">
           Demo
         </span>
-        <span className="text-amber-700 text-xs">
+        <span className="text-spark/80 text-xs">
           This is a preview with mock data. No simulation was run.
         </span>
         <Link
           href="/simulate/finance"
-          className="ml-auto text-xs text-amber-700 underline underline-offset-2 hover:text-amber-900 whitespace-nowrap"
+          className="ml-auto text-xs text-spark underline decoration-spark/40 underline-offset-2 hover:text-spark/80 whitespace-nowrap"
         >
           Run a real one →
         </Link>
@@ -55,16 +55,16 @@ export default function DemoReportPage() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs text-neutral-400 uppercase tracking-wider">
+          <span className="eyebrow text-glow">
             {MOCK.domainId}
           </span>
-          <span className="text-neutral-200">/</span>
-          <span className="text-xs text-neutral-400">
+          <span className="text-ink-600">/</span>
+          <span className="text-xs text-fg-faint">
             {MOCK.eventType.replace(/_/g, " ")}
           </span>
         </div>
-        <h1 className="text-2xl font-semibold mb-1">{MOCK.seedSummary}</h1>
-        <p className="text-xs text-neutral-400">
+        <h1 className="font-display text-2xl text-fg mb-1">{MOCK.seedSummary}</h1>
+        <p className="text-xs text-fg-faint font-mono">
           {MOCK.nAgents} agents &middot; {MOCK.nRounds} rounds &middot; $
           {MOCK.costUsd.toFixed(4)}
         </p>
@@ -82,8 +82,8 @@ export default function DemoReportPage() {
       />
 
       {/* Trajectory chart */}
-      <div className="border border-neutral-200 rounded-xl p-5 mb-5">
-        <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">
+      <div className="surface p-5 mb-5">
+        <h2 className="eyebrow mb-4">
           Opinion over time
         </h2>
         <OpinionChart
@@ -94,8 +94,8 @@ export default function DemoReportPage() {
       </div>
 
       {/* Distribution */}
-      <div className="border border-neutral-200 rounded-xl p-5 mb-5">
-        <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">
+      <div className="surface p-5 mb-5">
+        <h2 className="eyebrow mb-4">
           Final distribution
         </h2>
         <DistributionBar
@@ -107,18 +107,18 @@ export default function DemoReportPage() {
 
       {/* Agent interview — disabled in demo */}
       <div className="mb-5 opacity-50">
-        <h2 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-1">
+        <h2 className="eyebrow mb-1">
           Ask an agent
         </h2>
-        <p className="text-xs text-neutral-400 mb-3">
+        <p className="text-xs text-fg-faint mb-3">
           Available after running a real simulation.
         </p>
-        <div className="border border-neutral-200 rounded-xl px-4 py-8 text-center">
-          <p className="text-sm text-neutral-400">
+        <div className="surface px-4 py-8 text-center">
+          <p className="text-sm text-fg-faint">
             Agent chat requires a completed simulation.{" "}
             <Link
               href="/simulate/finance"
-              className="underline underline-offset-2 hover:text-neutral-700"
+              className="underline decoration-fg-faint/40 underline-offset-2 hover:text-fg"
             >
               Run one →
             </Link>
@@ -128,40 +128,40 @@ export default function DemoReportPage() {
 
       {/* Stats */}
       <details className="mb-5">
-        <summary className="text-xs text-neutral-400 cursor-pointer hover:text-neutral-700 transition-colors">
+        <summary className="text-xs text-fg-faint cursor-pointer hover:text-glow transition-colors">
           Simulation details
         </summary>
-        <dl className="grid grid-cols-2 gap-3 text-sm mt-3 border border-neutral-100 rounded-xl p-4">
+        <dl className="grid grid-cols-2 gap-3 text-sm mt-3 surface p-4">
           <div>
-            <dt className="text-neutral-400 text-xs">LLM calls</dt>
-            <dd className="font-medium">{MOCK.totalTier1Calls}</dd>
+            <dt className="text-fg-faint text-xs">LLM calls</dt>
+            <dd className="font-medium text-fg font-mono">{MOCK.totalTier1Calls}</dd>
           </div>
           <div>
-            <dt className="text-neutral-400 text-xs">Cost (USD)</dt>
-            <dd className="font-medium">${MOCK.costUsd.toFixed(5)}</dd>
+            <dt className="text-fg-faint text-xs">Cost (USD)</dt>
+            <dd className="font-medium text-fg font-mono">${MOCK.costUsd.toFixed(5)}</dd>
           </div>
           <div>
-            <dt className="text-neutral-400 text-xs">Rounds</dt>
-            <dd className="font-medium">{MOCK.trajectory.length}</dd>
+            <dt className="text-fg-faint text-xs">Rounds</dt>
+            <dd className="font-medium text-fg font-mono">{MOCK.trajectory.length}</dd>
           </div>
           <div>
-            <dt className="text-neutral-400 text-xs">Population</dt>
-            <dd className="font-medium">{MOCK.nAgents}</dd>
+            <dt className="text-fg-faint text-xs">Population</dt>
+            <dd className="font-medium text-fg font-mono">{MOCK.nAgents}</dd>
           </div>
         </dl>
       </details>
 
       {/* Footer nav */}
-      <div className="pt-4 border-t border-neutral-100 flex items-center justify-between text-sm">
+      <div className="pt-4 border-t border-ink-700 flex items-center justify-between text-sm">
         <Link
           href="/"
-          className="text-neutral-400 hover:text-neutral-900 transition-colors"
+          className="text-fg-faint hover:text-glow transition-colors"
         >
           &larr; Home
         </Link>
         <Link
           href="/simulate/finance"
-          className="text-neutral-400 hover:text-neutral-900 transition-colors"
+          className="text-fg-faint hover:text-glow transition-colors"
         >
           Run a real simulation →
         </Link>

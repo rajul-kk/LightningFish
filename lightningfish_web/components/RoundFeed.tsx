@@ -14,9 +14,9 @@ function opinionLabel(v: number): string {
 }
 
 function opinionColor(v: number): string {
-  if (v > 0.3) return "text-emerald-600";
-  if (v < -0.3) return "text-red-500";
-  return "text-neutral-500";
+  if (v > 0.3) return "text-glow";
+  if (v < -0.3) return "text-coral";
+  return "text-fg-muted";
 }
 
 export function RoundFeed({ rounds }: Props) {
@@ -24,34 +24,34 @@ export function RoundFeed({ rounds }: Props) {
 
   if (rounds.length === 0) {
     return (
-      <div className="text-sm text-neutral-400 py-8 text-center">
+      <div className="text-sm text-fg-faint py-8 text-center">
         Waiting for first round...
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+    <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
       {reversed.map((round) => (
         <div
           key={round.round_number}
-          className="border border-neutral-100 rounded-xl p-4"
+          className="border border-ink-700 rounded-xl p-4 bg-ink-950/40"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+            <span className="eyebrow">
               Round {round.round_number}
             </span>
-            <span className="text-xs text-neutral-300">
+            <span className="text-xs text-fg-faint font-mono">
               {round.tier1_calls} LLM call{round.tier1_calls !== 1 ? "s" : ""}
               {" · "}${round.estimated_cost_usd.toFixed(4)}
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`text-sm font-medium ${opinionColor(round.mean_opinion)}`}>
+            <span className={`text-sm font-medium font-mono ${opinionColor(round.mean_opinion)}`}>
               {round.mean_opinion > 0 ? "+" : ""}
               {round.mean_opinion.toFixed(3)}
             </span>
-            <span className="text-xs text-neutral-400">
+            <span className="text-xs text-fg-faint">
               {opinionLabel(round.mean_opinion)} — stddev{" "}
               {round.stddev_opinion.toFixed(3)}
             </span>
