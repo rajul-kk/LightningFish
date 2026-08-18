@@ -148,3 +148,74 @@ def test_copy_ground_truth_from_never_overwrites(tmp_path):
 
     assert target.copy_ground_truth_from(base) == 0
     assert target.get_ground_truth("hn:1").data["points"] == 108
+
+
+def test_caching_adapter_delegates_every_domainadapter_hook():
+    """
+    CachingAdapter re-implements DomainAdapter's interface by hand rather than
+    subclassing a single wrapped call, so adding a new hook to DomainAdapter
+    (as sim_direction was) silently falls back to the base-class default for
+    every wrapped adapter unless CachingAdapter is updated too.
+
+    That happened here: HNControversyAdapter.sim_direction scores the spread
+    of the final opinion distribution, but CachingAdapter had no override, so
+    every hn-controversy backtest through the CLI (which always wraps in
+    CachingAdapter) silently scored sign(trajectory[-1]) instead - the mean
+    axis, not dispersion - and reported a plausible-looking but meaningless
+    accuracy number.
+
+    This test enumerates DomainAdapter's methods and fails if any of them is
+    NOT overridden on CachingAdapter, so a future hook can't reintroduce the
+    same silent fallback.
+    """
+    import inspect
+
+    from lightningfish_core.adapter import DomainAdapter
+    from lightningfish_core.event_cache import CachingAdapter
+
+    base_methods = {
+        name for name, _ in inspect.getmembers(DomainAdapter, predicate=inspect.isfunction)
+    }
+    not_overridden = {
+        name for name in base_methods
+        if getattr(CachingAdapter, name) is getattr(DomainAdapter, name)
+    }
+    assert not not_overridden, (
+        f"CachingAdapter does not override {sorted(not_overridden)} - it will "
+        f"silently use DomainAdapter's default instead of the wrapped adapter's "
+        f"behaviour for these hooks."
+    )
+
+
+def test_caching_adapter_sim_direction_uses_the_wrapped_adapters_logic(tmp_path):
+    """Direct regression for the bug above: sim_direction must reach the inner
+    adapter's override, not DomainAdapter's sign(trajectory[-1]) default."""
+    from lightningfish_core.event_cache import CachingAdapter, EventCache
+    from lightningfish_core.models import EnrichedSeed, SimulationResult
+
+    class DispersionAdapter:
+        domain_id = "test"
+        display_name = "test"
+        opinion_labels = ("a", "b")
+
+        def sim_direction(self, result):
+            # Deliberately the OPPOSITE of the default (sign of trajectory[-1]),
+            # so a fallback to the base class is unmistakable.
+            return -1 if (result.trajectory and result.trajectory[-1] > 0) else 1
+
+        def enrich_seed(self, raw_input): raise NotImplementedError
+        def build_personas(self, n, cfg=None): raise NotImplementedError
+        def agent_system_prompt(self, s, p): raise NotImplementedError
+        def post_system_prompt(self, s, p, f, v): raise NotImplementedError
+        def argument_taxonomy(self): return []
+        def get_ground_truth(self, s): return None
+        def score(self, r, t): raise NotImplementedError
+
+    seed = EnrichedSeed(domain_id="test", raw_input={}, summary="", entities=[],
+                        event_type="e", metadata={})
+    result = SimulationResult(seed=seed, trajectory=[0.5], round_events=[],
+                              final_distribution=[0.1, 0.9], total_tier1_calls=0,
+                              total_cost_usd=0.0)
+
+    wrapped = CachingAdapter(DispersionAdapter(), EventCache("t", cache_dir=tmp_path))
+    assert wrapped.sim_direction(result) == -1

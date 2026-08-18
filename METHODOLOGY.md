@@ -57,7 +57,7 @@ already beats chance.
 
 ---
 
-## The six rules that make the comparison honest
+## The seven rules that make the comparison honest
 
 Most of the ways this protocol can be quietly rigged were found by rigging it
 accidentally, in this repo, and then finding the bug.
@@ -107,7 +107,28 @@ direction* and is excluded (`truth_direction` returns 0). Forcing a call on a
 genuinely ambiguous outcome adds noise to every rung and rewards whichever one
 happens to be biased toward the more common side.
 
-### 6. Ground truth is measured once and reused
+### 6. Wrapper adapters must delegate every hook, not just the ones in use when written
+
+A wrapper that reimplements an interface method-by-method (rather than
+forwarding automatically) silently falls back to the base class's default for
+any hook added after the wrapper was written. That default can look like a
+real, if mediocre, result — nothing raises, nothing crashes, the report just
+scores the wrong thing.
+
+*Found the hard way:* `CachingAdapter` was written against `DomainAdapter`
+before `sim_direction` existed. Adding it for the controversy experiment
+without also updating `CachingAdapter` meant every controversy backtest run
+through the CLI (which always wraps in `CachingAdapter`) silently scored
+`sign(trajectory[-1])` — the mean, not the crowd's dispersion — for the whole
+n=107 run. The accuracy it reported (53.3%) was a real number, just not an
+answer to the question being asked.
+
+*Applied:* `CachingAdapter.sim_direction` now delegates, and a structural test
+enumerates every `DomainAdapter` method and fails if `CachingAdapter` doesn't
+override it — so the next hook added to the interface can't reintroduce this
+silently.
+
+### 7. Ground truth is measured once and reused
 
 If the outcome metric keeps moving, "the ground truth" is a function of *when
 you asked*. Measure once, store the measurement with a timestamp, and have
@@ -160,6 +181,8 @@ are negative, and were reported as negative:
 | HN comments, submission-only | 57% | 71% | 39% | **fails** |
 | HN points, +2h early comments | 50% | 69% karma / **86% early-count** | — | baseline jumped, see below |
 | HN points, blind subgroup (n=22) | 73% | 55% karma / 73% early-count | **32%** (single_llm 27%) | **fails** — loses to a constant guess by 41 pts |
+| HN points, scaled (n=200) | 50% | 62.5% karma | 51.5% (single_llm 50%) | **fails** — chance, properly powered |
+| HN controversy (n=107) | 55% | 47.7% / 55.1% | 53.3%, but see rule 6 | **invalid run** — wrong axis scored, then a miscalibrated threshold |
 
 The last row is where the protocol earns its keep. Enriching the seed with early
 comments raised the *baseline* from 69% to 86% — so a simulation scored only

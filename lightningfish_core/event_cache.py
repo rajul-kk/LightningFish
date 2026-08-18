@@ -188,6 +188,9 @@ class CachingAdapter(DomainAdapter):
     def score(self, result: SimulationResult, truth: GroundTruthRecord) -> BacktestResult:
         return self._inner.score(result, truth)
 
+    def sim_direction(self, result: SimulationResult) -> int:
+        return self._inner.sim_direction(result)
+
     def naive_prediction(self, seed: EnrichedSeed) -> float:
         return self._inner.naive_prediction(seed)
 

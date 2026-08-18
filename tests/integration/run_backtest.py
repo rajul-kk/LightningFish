@@ -397,8 +397,28 @@ def _run_hn_controversy(args: list[str]) -> None:
             print(f"  [{i}/{len(scoreable)}] {ev.event_id} simulated", flush=True)
         pairs.append((ev, result))
 
-    _print_report("hn (controversy / does the crowd split)",
-                  score_precomputed(adapter, pairs, baselines=_baselines(adapter, engine)))
+    report = score_precomputed(adapter, pairs, baselines=_baselines(adapter, engine))
+    _print_report("hn (controversy / does the crowd split)", report)
+
+    # A one-class predictor can still post a plausible-looking accuracy on
+    # imbalanced classes — observed here when CachingAdapter silently failed
+    # to delegate sim_direction and every event scored on the mean axis
+    # instead of dispersion. That bug is fixed, but a constant predictor can
+    # also mean the threshold is simply miscalibrated for this population/
+    # model, so check every time rather than trusting the accuracy number.
+    sim_dirs = [o.sim_direction for o in report.outcomes]
+    if sim_dirs and len(set(sim_dirs)) == 1:
+        spreads = [
+            (sum((x - sum(d) / len(d)) ** 2 for x in d) / len(d)) ** 0.5
+            for _, r in pairs if len((d := r.final_distribution)) >= 2
+        ]
+        print(
+            f"\n  WARNING: the simulation predicted the SAME class for all "
+            f"{len(sim_dirs)} events — its dispersion carries no information "
+            f"in this run and the accuracy above is not a result.\n"
+            f"  observed stddev range: "
+            f"{min(spreads):.3f}-{max(spreads):.3f}" if spreads else ""
+        )
 
 
 def main() -> None:

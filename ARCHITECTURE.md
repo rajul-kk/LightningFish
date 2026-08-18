@@ -583,6 +583,53 @@ wedged request stalled a run indefinitely at event 12/36. Now bounded and
 degrading through the existing parse-failure path
 ([llm_provider.py](lightningfish_core/llm_provider.py)).
 
+### Controversy axis: a delegation bug, then a miscalibrated threshold
+
+Every backtest above reduces a simulation to `sign(final mean opinion)` — one
+bit, the same bit a single LLM call produces. `HNControversyAdapter`
+([config.py](lightningfish_hn/config.py)) was added to score something only a
+population can produce: whether the crowd's final opinions **split**, via
+`stddev(final_distribution) >= 0.35`, against the real
+`num_comments/points` ratio (>=0.7 = contested, <0.4 = consensus, below 20
+points = skipped as unseen rather than uncontroversial).
+
+**First run, n=107 (Kaggle, `kaggle_controversy.ipynb`):** sim 53.3%, majority
+55.1%, single_llm 55.1%, `p=0.687`. Unremarkable on its face — but the
+simulation predicted "contested" on 105 of 107 events, which is the same
+lopsided pattern as the mean-axis runs (positive on nearly everything). That
+was the tell.
+
+**Root cause: `CachingAdapter` didn't delegate `sim_direction`.** The CLI
+always wraps HN adapters in `CachingAdapter` for ground-truth caching, and
+`CachingAdapter` re-implements `DomainAdapter`'s interface method-by-method
+rather than forwarding automatically. `sim_direction` was added to
+`DomainAdapter` for this experiment and `CachingAdapter` was never updated, so
+it silently fell back to the base class default —
+`sign(trajectory[-1])`, the mean axis — for every wrapped controversy run.
+**The 107-event backtest never scored dispersion at all.**
+
+Fixed by adding the missing delegate ([event_cache.py](lightningfish_core/event_cache.py))
+plus a structural test that enumerates every `DomainAdapter` method and fails
+if `CachingAdapter` doesn't override it — closing this class of bug, not just
+this instance.
+
+**Correcting the bug doesn't rescue the result.** The notebook had
+independently logged the true stddev range alongside the (wrong) predictions:
+0.085 to 0.286, never once reaching the 0.35 threshold. Scored correctly,
+**all 107 events would have predicted "consensus"** — a second one-class
+predictor, just a different one. `_STDDEV_CONTENTIOUS = 0.35` was picked with
+no basis (a bare guess, unlike the other thresholds in this codebase, which
+at least reference an observed distribution) and sits above the entire
+observed range for this population (24 agents, 3–4 rounds, qwen2.5:7b).
+
+**Deliberately not fixed by lowering the threshold to fit this sample** — that
+would violate rule 3 in [METHODOLOGY.md](METHODOLOGY.md) (thresholds fixed
+before scoring, never tuned on the evaluation set) using the exact data just
+scored. The honest state: the controversy axis has not been validly tested
+yet. Recalibrating `_STDDEV_CONTENTIOUS` needs a held-out batch of runs, not
+this one. `run_backtest hn-controversy` now warns explicitly whenever its
+predictor is constant, so this can't recur silently.
+
 ### Prior art and where this project sits
 
 A literature/prior-art check (2026-08) found active research in LLM-based
