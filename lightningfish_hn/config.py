@@ -161,6 +161,11 @@ class HNDomainAdapter(DomainAdapter):
         )
 
 
+# Fallback only for callers that don't calibrate. The first real run showed
+# this was a bare guess with no basis: observed stddev on n=107 topped out at
+# 0.286, so this threshold fired on ZERO events and the axis was never
+# actually tested. See run_backtest hn-controversy-calibrated, which derives
+# a threshold from a held-out calibration batch instead of trusting this.
 _STDDEV_CONTENTIOUS = 0.35
 
 
@@ -175,7 +180,11 @@ class HNControversyAdapter(HNDomainAdapter):
     number and cannot express "this will divide people", while a population of
     heterogeneous agents either converges or does not.
 
-    Prediction: stddev of the final opinion distribution.
+    Prediction: stddev of the final opinion distribution, thresholded at
+    ``stddev_threshold``. Pass a value derived from an independent calibration
+    batch — the module default is an uncalibrated guess that turned out to sit
+    above the entire observed range on the one real run so far (rule 3/6 in
+    METHODOLOGY.md: don't tune this against the same data it's scored on).
     Truth: comments-to-points ratio (see ground_truth.py).
 
     Not registered — instantiate directly for the controversy backtest.
@@ -184,13 +193,26 @@ class HNControversyAdapter(HNDomainAdapter):
     display_name = "Hacker News Controversy"
     opinion_labels = ("consensus", "contested")
 
+    def __init__(self, stddev_threshold: float = _STDDEV_CONTENTIOUS) -> None:
+        self.stddev_threshold = stddev_threshold
+
     def sim_direction(self, result: SimulationResult) -> int:
         dist = result.final_distribution
         if not dist or len(dist) < 2:
             return 0
         mean = sum(dist) / len(dist)
         stddev = (sum((x - mean) ** 2 for x in dist) / len(dist)) ** 0.5
-        return 1 if stddev >= _STDDEV_CONTENTIOUS else -1
+        return 1 if stddev >= self.stddev_threshold else -1
+
+    @staticmethod
+    def stddev_of(result: SimulationResult) -> float | None:
+        """The raw statistic sim_direction thresholds, exposed so a calibration
+        pass can collect it without re-deriving the formula."""
+        dist = result.final_distribution
+        if not dist or len(dist) < 2:
+            return None
+        mean = sum(dist) / len(dist)
+        return (sum((x - mean) ** 2 for x in dist) / len(dist)) ** 0.5
 
     def truth_direction(self, truth: GroundTruthRecord) -> int:
         points = truth.data.get("points", 0)

@@ -421,9 +421,113 @@ def _run_hn_controversy(args: list[str]) -> None:
         )
 
 
+def _run_hn_controversy_calibrated(args: list[str]) -> None:
+    """
+    Same question as hn-controversy — does the crowd split — but derives the
+    stddev threshold from a held-out calibration batch instead of trusting
+    the module's uncalibrated 0.35 guess, which fired on zero of 107 real
+    events (METHODOLOGY.md rule 3/6: don't tune a threshold on the data it's
+    scored against — including your own prior guess, once you've seen it fail).
+
+    Pulled events are split deterministically by a hash of their event id into
+    ~40% calibration / ~60% evaluation. Only the calibration half's simulated
+    stddevs inform the threshold (its median); only the evaluation half's
+    accuracy is reported as a result.
+    """
+    import hashlib
+
+    from lightningfish_core.backtest import BacktestEvent
+    from lightningfish_hn.backtest_events import pull_hn_events
+    from lightningfish_hn.config import HNControversyAdapter
+
+    limit = int(args[0]) if args else 300
+    cache = EventCache("hn_stories")
+    # Threshold doesn't affect get_ground_truth/truth_direction/naive_prediction,
+    # so a plain adapter is fine for the filtering and simulation pass below —
+    # the calibrated threshold is only plugged in for the final scoring.
+    filter_adapter = CachingAdapter(HNControversyAdapter(), cache)
+    events = cached_pull_events(
+        cache, f"hn:points:{limit}", lambda: pull_hn_events("points", limit)
+    )
+
+    scoreable = []
+    for ev in events:
+        truth = filter_adapter.get_ground_truth(ev.seed)
+        if truth is not None and filter_adapter.truth_direction(truth) != 0:
+            scoreable.append(ev)
+    print(f"  {len(scoreable)} of {len(events)} events have a controversy direction",
+          flush=True)
+
+    def _bucket(event_id: str) -> str:
+        h = int(hashlib.sha256(event_id.encode()).hexdigest(), 16)
+        return "calib" if h % 5 < 2 else "eval"  # ~40/60, deterministic
+
+    calib = [e for e in scoreable if _bucket(e.event_id) == "calib"]
+    evalset = [e for e in scoreable if _bucket(e.event_id) == "eval"]
+    print(f"  split: {len(calib)} calibration / {len(evalset)} evaluation", flush=True)
+    if len(calib) < 15 or len(evalset) < 15:
+        print("  ABORT: too few events in one split to calibrate or evaluate "
+              "meaningfully — pull more stories with a larger limit")
+        sys.exit(1)
+
+    model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
+    engine = SimulationEngine(filter_adapter, model=model)
+    n_agents, n_rounds = _sim_size(60, 6)
+    run_key = f"{model}:{n_agents}x{n_rounds}"
+
+    def _simulate(events_: list, label: str) -> list:
+        pairs_ = []
+        for i, ev in enumerate(events_, 1):
+            cached_run = cache.get_run(ev.event_id, run_key)
+            if cached_run:
+                result = SimulationResult(
+                    seed=ev.seed, trajectory=cached_run["trajectory"], round_events=[],
+                    final_distribution=cached_run["final_distribution"],
+                    total_tier1_calls=0, total_cost_usd=0.0,
+                    mean_parse_success_rate=cached_run["mean_parse_success_rate"],
+                    low_confidence=cached_run["low_confidence"],
+                )
+            else:
+                agents = filter_adapter.build_personas(n_agents)
+                result = engine.run(ev.seed, agents, n_rounds=n_rounds)
+                cache.put_run(ev.event_id, run_key, result)
+                cache.save()
+            print(f"  [{label} {i}/{len(events_)}] {ev.event_id}", flush=True)
+            pairs_.append((ev, result))
+        return pairs_
+
+    print("\n--- calibration pass ---", flush=True)
+    calib_pairs = _simulate(calib, "calib")
+    calib_stddevs = sorted(
+        s for _, r in calib_pairs if (s := HNControversyAdapter.stddev_of(r)) is not None
+    )
+    if not calib_stddevs:
+        print("  ABORT: no calibration simulation produced a usable distribution")
+        sys.exit(1)
+    threshold = calib_stddevs[len(calib_stddevs) // 2]  # median
+    print(f"  calibration stddev range: {calib_stddevs[0]:.3f}-{calib_stddevs[-1]:.3f}, "
+          f"median (threshold) = {threshold:.3f}", flush=True)
+
+    print("\n--- evaluation pass ---", flush=True)
+    eval_pairs = _simulate(evalset, "eval")
+
+    eval_adapter = CachingAdapter(HNControversyAdapter(stddev_threshold=threshold), cache)
+    report = score_precomputed(eval_adapter, eval_pairs, baselines=_baselines(eval_adapter, engine))
+    _print_report(f"hn controversy, calibrated threshold={threshold:.3f} (held-out eval)", report)
+
+    sim_dirs = [o.sim_direction for o in report.outcomes]
+    if sim_dirs and len(set(sim_dirs)) == 1:
+        print(
+            f"\n  WARNING: even after calibration the predictor is constant on the "
+            f"eval set ({len(sim_dirs)} events) — the calibration and evaluation "
+            f"halves have different stddev distributions, or n is too small for "
+            f"the median split to generalise. Not a valid result."
+        )
+
+
 def main() -> None:
     if len(sys.argv) < 2 or sys.argv[1] not in (
-        "coding", "finance", "hn", "hn-early", "hn-controversy"
+        "coding", "finance", "hn", "hn-early", "hn-controversy", "hn-controversy-calibrated"
     ):
         print(__doc__)
         sys.exit(0)
@@ -433,6 +537,10 @@ def main() -> None:
         _run_finance()
     elif sys.argv[1] == "hn-early":
         _run_hn_early(sys.argv[2:])
+    elif sys.argv[1] == "hn-controversy":
+        _run_hn_controversy(sys.argv[2:])
+    elif sys.argv[1] == "hn-controversy-calibrated":
+        _run_hn_controversy_calibrated(sys.argv[2:])
     else:
         _run_hn(sys.argv[2:])
 

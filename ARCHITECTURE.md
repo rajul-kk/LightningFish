@@ -630,6 +630,17 @@ yet. Recalibrating `_STDDEV_CONTENTIOUS` needs a held-out batch of runs, not
 this one. `run_backtest hn-controversy` now warns explicitly whenever its
 predictor is constant, so this can't recur silently.
 
+**Follow-up: proper calibration built, not yet run.**
+`HNControversyAdapter` now takes `stddev_threshold` as a constructor argument
+instead of a hardcoded module constant, and
+`run_backtest hn-controversy-calibrated [limit]` splits pulled events
+deterministically (hash of event id, ~40/60) into a calibration batch and a
+disjoint evaluation batch — the threshold is the calibration batch's median
+stddev, fixed before the evaluation batch is scored, so this doesn't repeat
+the same-data violation. See [`kaggle_controversy.ipynb`](kaggle_controversy.ipynb).
+No run has completed yet (blocked on Kaggle API credentials at the time this
+was written); the table above still reads "invalid run" until one does.
+
 ### Prior art and where this project sits
 
 A literature/prior-art check (2026-08) found active research in LLM-based
