@@ -10,9 +10,9 @@ if TYPE_CHECKING:
     from .social import SocialPost
 
 _MODEL_COSTS: dict[str, tuple[float, float]] = {
-    "claude-haiku-4-5-20251001": (0.8e-6,  4e-6),
-    "claude-sonnet-4-6":         (3e-6,   15e-6),
-    "claude-opus-4-8":           (15e-6,  75e-6),
+    "claude-haiku-4-5-20251001": (1e-6,   5e-6),
+    "claude-sonnet-5":           (3e-6,  15e-6),
+    "claude-opus-5":             (5e-6,  25e-6),
 }
 _DEFAULT_COSTS = (3e-6, 15e-6)
 _LOCAL_BASE_URL = "http://localhost:11434/v1"

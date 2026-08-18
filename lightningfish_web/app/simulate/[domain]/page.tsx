@@ -86,7 +86,7 @@ function SimulatePageBody({ userId }: { userId: string }) {
   );
   const [useLocalModel, setUseLocalModel] = useState(false);
   const [localBaseUrl, setLocalBaseUrl] = useState(LOCAL_DEFAULT_BASE_URL);
-  const [localModelName, setLocalModelName] = useState("llama3.2");
+  const [localModelName, setLocalModelName] = useState("qwen2.5:7b");
   const [localStatus, setLocalStatus] = useState<LocalStatus | null>(null);
   const [probingLocal, setProbingLocal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -399,9 +399,10 @@ function SimulatePageBody({ userId }: { userId: string }) {
                   </a>
                   {", then run "}
                   <code className="bg-ink-800 text-fg px-1.5 py-0.5 rounded font-mono">
-                    ollama pull llama3.2
+                    ollama pull qwen2.5:7b
                   </code>
-                  .
+                  . Smaller models (llama3.2 and below) tend to drop the
+                  structured output format under load.
                 </p>
               </div>
             )}

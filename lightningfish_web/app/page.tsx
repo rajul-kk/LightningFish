@@ -26,16 +26,12 @@ export default function HomePage() {
 
       {/* Domain cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-20">
-        {DOMAINS.map((domain, i) => (
+        {DOMAINS.map((domain) => (
           <Link
             key={domain.id}
             href={`/simulate/${domain.id}`}
             className="surface-interactive group relative p-6 overflow-hidden flex flex-col"
           >
-            <span className="font-display italic text-6xl text-ink-700 absolute -top-2 -right-1 select-none group-hover:text-glow/15 transition-colors duration-300">
-              {String(i + 1).padStart(2, "0")}
-            </span>
-
             <div className="flex items-start justify-between mb-4 relative">
               <span className="eyebrow text-fg-faint group-hover:text-glow transition-colors">
                 {domain.id}
@@ -64,8 +60,9 @@ export default function HomePage() {
       {/* Footer */}
       <div className="pt-8 border-t border-ink-700 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
         <p className="text-sm text-fg-faint">
-          Built on calibrated behavioral archetypes, backtested against real
-          settled outcomes.
+          Built on calibrated behavioral archetypes. Coding and Hacker News
+          are backtested against real settled outcomes — see each domain for
+          results.
         </p>
         <div className="flex items-center gap-4 text-sm sm:ml-auto">
           <Link

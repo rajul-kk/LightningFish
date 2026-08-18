@@ -79,22 +79,22 @@ export const MODELS: ModelOption[] = [
     id: "claude-haiku-4-5-20251001",
     label: "Haiku 4.5",
     description: "Fast, lowest cost",
-    inputCostPerM: 0.80,
-    outputCostPerM: 4,
+    inputCostPerM: 1,
+    outputCostPerM: 5,
   },
   {
-    id: "claude-sonnet-4-6",
-    label: "Sonnet 4.6",
+    id: "claude-sonnet-5",
+    label: "Sonnet 5",
     description: "Balanced — default",
     inputCostPerM: 3,
     outputCostPerM: 15,
   },
   {
-    id: "claude-opus-4-8",
-    label: "Opus 4.8",
+    id: "claude-opus-5",
+    label: "Opus 5",
     description: "Most capable",
-    inputCostPerM: 15,
-    outputCostPerM: 75,
+    inputCostPerM: 5,
+    outputCostPerM: 25,
   },
 ];
 
@@ -104,13 +104,17 @@ export interface LocalStatus {
   models: string[];
 }
 
+// qwen2.5:7b first and set as the default below: it's the only local model
+// this project's own backtests were run and validated against. llama3.2 (3B)
+// is documented (ARCHITECTURE.md) as too weak — it drops the structured
+// output format under load, which silently degrades a run's signal.
 export const LOCAL_POPULAR_MODELS = [
-  "llama3.2",
+  "qwen2.5:7b",
   "llama3.1:8b",
   "mistral",
   "phi3",
   "gemma2:2b",
-  "qwen2.5:7b",
+  "llama3.2",
 ] as const;
 
 export const LOCAL_DEFAULT_BASE_URL = "http://localhost:11434/v1";
@@ -211,6 +215,8 @@ export const DOMAINS: DomainMeta[] = [
         filing_date: new Date().toISOString().split("T")[0],
       };
     },
+    accuracyNote:
+      "Unlike the other two domains, this one has not been backtested against real settled outcomes — there is no accuracy number to report either way. Treat the output as a narrative, not a forecast.",
   },
   {
     id: "coding",
