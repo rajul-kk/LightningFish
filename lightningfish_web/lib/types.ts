@@ -170,10 +170,12 @@ export interface DomainMeta {
   /** Turns the textbox contents into the adapter's raw_input payload. */
   buildRawInput: (raw: string) => Record<string, unknown>;
   /**
-   * Shown alongside results when backtesting found the domain does not beat
-   * its baselines. Being quiet about that would be overclaiming.
+   * What we actually found when we checked this domain against real settled
+   * outcomes — every domain gets one, since "not tested" is itself a finding
+   * worth stating. This is a deliberation tool, not a forecaster; this note
+   * is where that gets made concrete rather than asserted.
    */
-  accuracyNote?: string;
+  validationNote: string;
 }
 
 /** Accepts a news.ycombinator.com item URL or a bare story id. */
@@ -189,9 +191,9 @@ function parseHnStoryId(raw: string): number {
 export const DOMAINS: DomainMeta[] = [
   {
     id: "finance",
-    label: "How will the market react?",
+    label: "How would investors argue about this?",
     description:
-      "Enter any stock ticker — optionally add a news headline or earnings result. Value investors, traders, and retail buyers deliberate and reach a bullish or bearish verdict.",
+      "Enter any stock ticker — optionally add a news headline or earnings result. Value investors, momentum traders, and retail buyers each make their case, bearish or bullish.",
     negativePole: "Bearish",
     positivePole: "Bullish",
     inputLabel: "Stock ticker",
@@ -215,14 +217,14 @@ export const DOMAINS: DomainMeta[] = [
         filing_date: new Date().toISOString().split("T")[0],
       };
     },
-    accuracyNote:
-      "Unlike the other two domains, this one has not been backtested against real settled outcomes — there is no accuracy number to report either way. Treat the output as a narrative, not a forecast.",
+    validationNote:
+      "Unlike the other two domains, this one hasn't been checked against real settled outcomes — there's no result to report either way. Read this as the shape of the argument, not a forecast.",
   },
   {
     id: "coding",
-    label: "Should this PR be merged?",
+    label: "How would the review team debate this?",
     description:
-      "Paste a GitHub pull request URL. Security reviewers, domain experts, and junior contributors weigh in and reach a consensus on whether to approve or block.",
+      "Paste a GitHub pull request URL. Security reviewers, domain experts, and junior contributors each make their case — watch where the debate lands, block or approve.",
     negativePole: "Block",
     positivePole: "Approve",
     inputLabel: "GitHub PR URL",
@@ -235,16 +237,16 @@ export const DOMAINS: DomainMeta[] = [
       input: "https://github.com/pallets/flask/pull/5489",
     },
     buildRawInput: (raw) => ({ pr_url: raw.trim() }),
-    accuracyNote:
-      "Backtested on real merged/closed PRs, this domain does not beat a content-free baseline — the PR metadata a seed can see does not determine whether maintainers merge it. Read the deliberation, not the verdict.",
+    validationNote:
+      "Checked against real merged/closed PRs: this domain doesn't beat a content-free baseline — the PR metadata a seed can see doesn't determine whether maintainers actually merge it. Read the deliberation, not the verdict.",
   },
   {
     id: "hn",
-    label: "Will Hacker News upvote this?",
+    label: "How would Hacker News argue about this?",
     description:
-      "Paste a Hacker News story link. Lurkers, hype-beasts, cynics and domain pedants react in turn, herding or splitting as the thread develops.",
-    negativePole: "Flop",
-    positivePole: "Viral",
+      "Paste a Hacker News story link. Lurkers, hype-beasts, cynics, and domain pedants react and argue it out, herding toward consensus or splitting into camps.",
+    negativePole: "Unimpressed",
+    positivePole: "Excited",
     inputLabel: "Hacker News story URL or ID",
     inputPlaceholder: "https://news.ycombinator.com/item?id=44281944",
     inputHint: "A news.ycombinator.com item link, or just the numeric story id.",
@@ -255,7 +257,7 @@ export const DOMAINS: DomainMeta[] = [
       input: "https://news.ycombinator.com/item?id=44281944",
     },
     buildRawInput: (raw) => ({ story_id: parseHnStoryId(raw) }),
-    accuracyNote:
-      "Measured against 200 real stories, this simulation predicts reception at roughly chance (51.5%) while author karma alone reaches 62.5%. HN outcomes are driven by who posts and who replies early, not by what the model reads. Treat the output as a narrative, not a forecast.",
+    validationNote:
+      "Checked against 200 real stories: this simulation predicts reception at roughly chance (51.5%; author karma alone gets 62.5%) — and a separate test of whether the simulated crowd's disagreement predicts real controversy also failed (38%, below chance). HN reception is driven by who posts and who replies early, not by what a model reads here. Read this as the shape of the argument, not a forecast.",
   },
 ];

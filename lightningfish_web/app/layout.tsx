@@ -26,7 +26,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Lightningfish",
-  description: "Multi-agent opinion simulation for markets, code review, and Hacker News",
+  description: "A multi-agent deliberation simulator, not a forecaster — calibrated AI personas argue out a stock, a PR, or a Hacker News post.",
 };
 
 async function AuthNav() {

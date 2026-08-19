@@ -1,6 +1,8 @@
 # Lightningfish
 
-Multi-agent opinion simulation engine with a live streaming web interface. Paste a stock ticker/SEC filing or GitHub PR URL, configure a population of calibrated agent archetypes, and watch them form consensus round by round.
+Lightningfish simulates how a population of differently-minded people would argue about something — a stock ticker, a GitHub PR, a Hacker News link — using calibrated AI personas that read, react, and try to persuade each other round by round.
+
+**This is a deliberation simulator, not a forecaster.** Every domain has been backtested against real settled outcomes wherever that's possible, and the results are reported honestly — including every place the simulation loses to a naive heuristic. See [ARCHITECTURE.md §10](ARCHITECTURE.md) for the full findings log and [METHODOLOGY.md](METHODOLOGY.md) for the validation protocol behind it. What the engine is actually good for: watching a structured, multi-perspective argument unfold — where a skeptic pushes back, how fast consensus forms (or doesn't), and what the strongest case on each side sounds like.
 
 Built from scratch, inspired by [OASIS](https://github.com/camel-ai/oasis) and MiroFish.
 

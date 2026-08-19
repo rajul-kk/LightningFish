@@ -63,8 +63,8 @@ function buildSummary(
     `${dominant}% of agents ${convergeWord} a ${strength} ${direction} position ` +
     `over ${n} rounds. ${minority}% held the opposing view${minority < 10 ? " — a small but persistent minority" : ""}. ` +
     (abs > 0.6
-      ? `The signal is clear and unlikely to reverse without new information.`
-      : `The outcome is directional but not decisive — sentiment could shift on new developments.`)
+      ? `The debate settled quickly and shows no sign of splitting.`
+      : `The debate leans one way but isn't unanimous — a different framing could still shift it.`)
   );
 }
 
@@ -93,9 +93,9 @@ export function ConsensusVerdict({
     : "text-fg-muted";
 
   const label = isPositive
-    ? `${positivePole} — ${strengthWord(abs)} signal`
+    ? `${positivePole} — ${strengthWord(abs)} consensus`
     : isNegative
-    ? `${negativePole} — ${strengthWord(abs)} signal`
+    ? `${negativePole} — ${strengthWord(abs)} consensus`
     : "No clear consensus";
 
   const summary = buildSummary(

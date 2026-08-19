@@ -8,16 +8,16 @@ export default function HomePage() {
       <div className="mb-20 max-w-2xl">
         <p className="eyebrow text-glow mb-5 flex items-center gap-2">
           <span className="inline-block w-6 h-px bg-glow/60" />
-          Multi-agent opinion simulation
+          Multi-agent deliberation simulator
         </p>
         <h1 className="font-display text-5xl sm:text-6xl leading-[1.05] tracking-tight text-fg mb-6">
-          See how the crowd reacts{" "}
-          <span className="italic text-glow">before it does</span>.
+          Watch the crowd argue it out{" "}
+          <span className="italic text-glow">before you have to</span>.
         </h1>
         <p className="text-lg text-fg-muted leading-relaxed max-w-xl">
           Enter a stock ticker, a GitHub PR, or a Hacker News link. A calibrated
           population of AI personas — investors, reviewers, cynics, lurkers —
-          deliberates in real time and converges on a verdict.
+          argues it out in real time, and you watch where the debate lands.
         </p>
         <p className="text-sm text-fg-faint mt-4 font-mono">
           ~30s per run · no account needed to view results

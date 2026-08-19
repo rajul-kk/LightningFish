@@ -203,12 +203,10 @@ function SimulatePageBody({ userId }: { userId: string }) {
             />
           )}
           <p className="text-xs text-fg-faint mt-1.5">{meta.inputHint}</p>
-          {meta.accuracyNote && (
-            <p className="text-xs text-spark bg-spark-dim border border-spark/25 rounded-lg px-3 py-2.5 mt-3 leading-relaxed">
-              <span className="font-semibold">Accuracy: </span>
-              {meta.accuracyNote}
-            </p>
-          )}
+          <p className="text-xs text-spark bg-spark-dim border border-spark/25 rounded-lg px-3 py-2.5 mt-3 leading-relaxed">
+            <span className="font-semibold">Validation: </span>
+            {meta.validationNote}
+          </p>
         </div>
 
         {/* Simulation parameters */}
