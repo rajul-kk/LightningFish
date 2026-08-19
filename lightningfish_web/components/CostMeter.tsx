@@ -13,8 +13,15 @@ export function CostMeter({ cost, rounds, totalRounds }: Props) {
     <div className="flex items-center gap-4 text-xs text-fg-faint">
       <div className="flex-1">
         <div className="flex justify-between mb-1.5 font-mono">
-          <span>Round {rounds} / {totalRounds}</span>
-          <span className="tabular-nums text-fg-muted">${cost.toFixed(4)}</span>
+          {/* key remounts the span whenever the round advances, replaying the
+              pop-in animation — a cheap way to make "the number changed"
+              legible without a full charting/tween library. */}
+          <span key={rounds} className="inline-block animate-value-pop">
+            Round {rounds} / {totalRounds}
+          </span>
+          <span key={cost.toFixed(4)} className="inline-block tabular-nums text-fg-muted animate-value-pop">
+            ${cost.toFixed(4)}
+          </span>
         </div>
         <div className="h-1 rounded-full bg-ink-800">
           <div

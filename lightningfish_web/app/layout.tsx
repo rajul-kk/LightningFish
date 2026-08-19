@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Fraunces, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import { HAS_CLERK } from "@/lib/clerk";
+import { BoltIcon } from "@/components/icons";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -70,7 +71,7 @@ async function Shell({ children }: { children: React.ReactNode }) {
 
         <header className="border-b border-ink-700/80 px-6 py-4 flex items-center justify-between backdrop-blur-sm sticky top-0 z-10 bg-ink-950/80">
           <Link href="/" className="flex items-center gap-2 group">
-            <span className="text-glow text-base leading-none group-hover:animate-pulse">⚡</span>
+            <BoltIcon className="w-3.5 h-3.5 text-glow animate-bolt-flicker" />
             <span className="font-display text-base tracking-tight text-fg">
               Lightningfish
             </span>

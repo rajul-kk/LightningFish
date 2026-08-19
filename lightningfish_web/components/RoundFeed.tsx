@@ -32,10 +32,12 @@ export function RoundFeed({ rounds }: Props) {
 
   return (
     <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-      {reversed.map((round) => (
+      {reversed.map((round, i) => (
         <div
           key={round.round_number}
-          className="border border-ink-700 rounded-xl p-4 bg-ink-950/40"
+          className={`rounded-xl p-4 bg-ink-950/40 border animate-fade-up transition-colors duration-500 ${
+            i === 0 ? "border-glow/40 shadow-glow" : "border-ink-700"
+          }`}
         >
           <div className="flex items-center justify-between mb-2">
             <span className="eyebrow">

@@ -75,6 +75,38 @@ input[type="checkbox"] {
   accent-color: #3febb8;
 }
 
+/* Diagonal light sweep across a card's border on hover — an instrument-panel
+   "scan" rather than a flat color change. Lives on a dedicated element so the
+   overflow-hidden card can clip it. */
+.card-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 40%,
+    rgba(63, 235, 184, 0.09) 50%,
+    transparent 60%
+  );
+  transform: translateX(-120%) skewX(-15deg);
+  opacity: 0;
+}
+.group:hover .card-shine::after {
+  animation: sweep 1.1s ease-in-out;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 @layer components {
   /* Card / panel surface — the deep-sea instrument-panel bezel */
   .surface {

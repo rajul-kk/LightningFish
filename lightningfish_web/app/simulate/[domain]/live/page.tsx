@@ -6,6 +6,7 @@ import { OpinionChart } from "@/components/OpinionChart";
 import { DistributionBar } from "@/components/DistributionBar";
 import { RoundFeed } from "@/components/RoundFeed";
 import { CostMeter } from "@/components/CostMeter";
+import { BoltIcon } from "@/components/icons";
 import type { SocialPost } from "@/lib/types";
 
 const DEFAULT_NEGATIVE = "Negative";
@@ -125,8 +126,9 @@ export default function LivePage() {
             </div>
             {latest.cascade_detected && (
               <div className="text-right">
-                <span className="pill-spark">
-                  ⚡ Cascade
+                <span className="pill-spark inline-flex items-center gap-1">
+                  <BoltIcon className="w-3 h-3 animate-bolt-flicker" />
+                  Cascade
                 </span>
                 {latest.cascade_trigger_archetype && (
                   <div className="text-xs text-fg-faint mt-1">{latest.cascade_trigger_archetype}</div>

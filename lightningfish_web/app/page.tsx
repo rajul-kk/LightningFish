@@ -26,11 +26,12 @@ export default function HomePage() {
 
       {/* Domain cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-20">
-        {DOMAINS.map((domain) => (
+        {DOMAINS.map((domain, i) => (
           <Link
             key={domain.id}
             href={`/simulate/${domain.id}`}
-            className="surface-interactive group relative p-6 overflow-hidden flex flex-col"
+            className="card-shine surface-interactive group relative p-6 overflow-hidden flex flex-col opacity-0 animate-fade-up hover:-translate-y-1"
+            style={{ animationDelay: `${i * 110}ms` }}
           >
             <div className="flex items-start justify-between mb-4 relative">
               <span className="eyebrow text-fg-faint group-hover:text-glow transition-colors">
@@ -48,10 +49,19 @@ export default function HomePage() {
               {domain.description}
             </p>
 
-            <div className="flex items-center gap-2 relative">
-              <span className="pill-neg">{domain.negativePole}</span>
-              <span className="text-fg-faint text-xs">&harr;</span>
-              <span className="pill-pos">{domain.positivePole}</span>
+            <div className="flex items-center justify-between relative">
+              <div className="flex items-center gap-2">
+                <span className="pill-neg">{domain.negativePole}</span>
+                <span className="text-fg-faint text-xs">&harr;</span>
+                <span className="pill-pos">{domain.positivePole}</span>
+              </div>
+              <span className="flex items-center gap-1.5 text-xs text-fg-faint font-mono tabular-nums">
+                <span className="relative flex w-1.5 h-1.5">
+                  <span className="absolute inline-flex w-full h-full rounded-full bg-glow opacity-60 animate-ping" />
+                  <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-glow" />
+                </span>
+                {domain.archetypes.length}
+              </span>
             </div>
           </Link>
         ))}

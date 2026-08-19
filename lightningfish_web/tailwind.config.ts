@@ -52,6 +52,35 @@ const config: Config = {
         grain:
           "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E\")",
       },
+      keyframes: {
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "bolt-flicker": {
+          "0%, 100%": { opacity: "1", filter: "drop-shadow(0 0 3px rgba(63,235,184,0.7))" },
+          "45%": { opacity: "1", filter: "drop-shadow(0 0 3px rgba(63,235,184,0.7))" },
+          "48%": { opacity: "0.4", filter: "none" },
+          "50%": { opacity: "1", filter: "drop-shadow(0 0 6px rgba(63,235,184,0.9))" },
+          "52%": { opacity: "0.6", filter: "none" },
+          "55%": { opacity: "1", filter: "drop-shadow(0 0 3px rgba(63,235,184,0.7))" },
+        },
+        "sweep": {
+          "0%": { transform: "translateX(-120%) skewX(-15deg)" },
+          "100%": { transform: "translateX(220%) skewX(-15deg)" },
+        },
+        "value-pop": {
+          "0%": { transform: "scale(1.1)", color: "#7FFFD9" },
+          "60%": { transform: "scale(1)" },
+          "100%": { color: "inherit" },
+        },
+      },
+      animation: {
+        "fade-up": "fade-up 0.6s cubic-bezier(0.16,1,0.3,1) both",
+        "bolt-flicker": "bolt-flicker 4s ease-in-out infinite",
+        sweep: "sweep 1.1s ease-in-out",
+        "value-pop": "value-pop 0.4s ease-out",
+      },
     },
   },
   plugins: [],
