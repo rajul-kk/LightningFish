@@ -183,7 +183,7 @@ are negative, and were reported as negative:
 | HN points, blind subgroup (n=22) | 73% | 55% karma / 73% early-count | **32%** (single_llm 27%) | **fails** — loses to a constant guess by 41 pts |
 | HN points, scaled (n=200) | 50% | 62.5% karma | 51.5% (single_llm 50%) | **fails** — chance, properly powered |
 | HN controversy (n=107) | 55% | 47.7% / 55.1% | 53.3%, but see rule 6 | **invalid run** — wrong axis scored, then a miscalibrated threshold |
-| HN controversy, calibrated | — | — | not yet run | fixed both issues; blocked on Kaggle API credentials at time of writing |
+| HN controversy, calibrated (n=74) | 53% | 51% karma / 53% single_llm | **38%** | **fails** — below chance, both issues fixed, valid result |
 
 The last row is where the protocol earns its keep. Enriching the seed with early
 comments raised the *baseline* from 69% to 86% — so a simulation scored only

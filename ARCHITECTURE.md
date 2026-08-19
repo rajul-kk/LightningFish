@@ -630,7 +630,7 @@ yet. Recalibrating `_STDDEV_CONTENTIOUS` needs a held-out batch of runs, not
 this one. `run_backtest hn-controversy` now warns explicitly whenever its
 predictor is constant, so this can't recur silently.
 
-**Follow-up: proper calibration built, not yet run.**
+**Follow-up: calibrated properly, and it still fails — decisively.**
 `HNControversyAdapter` now takes `stddev_threshold` as a constructor argument
 instead of a hardcoded module constant, and
 `run_backtest hn-controversy-calibrated [limit]` splits pulled events
@@ -638,8 +638,24 @@ deterministically (hash of event id, ~40/60) into a calibration batch and a
 disjoint evaluation batch — the threshold is the calibration batch's median
 stddev, fixed before the evaluation batch is scored, so this doesn't repeat
 the same-data violation. See [`kaggle_controversy.ipynb`](kaggle_controversy.ipynb).
-No run has completed yet (blocked on Kaggle API credentials at the time this
-was written); the table above still reads "invalid run" until one does.
+
+Calibration on 35 held-out events gave a real threshold (stddev range
+0.121–0.286, median 0.210) — a world away from the old 0.35 guess that never
+fired once. Evaluated on a disjoint 74 events:
+
+```
+n=74  sim=38%  majority=53%  naive=51%  single_llm=53%
+p=0.996
+```
+
+This is the first *valid* score on this axis (bug fixed, threshold no longer
+degenerate), and it's worse than any prior result: **the simulation scores
+below chance.** `single_llm` again predicts "contested" on essentially every
+event — the same constant-positivity pattern seen on the mean axis, just
+showing up here too, and it ties the majority-class rate exactly because of
+it. The dispersion hypothesis — that a heterogeneous population's *spread*
+would carry signal a single call structurally can't — is now cleanly falsified
+rather than merely untested. Closes this line of investigation.
 
 ### Prior art and where this project sits
 
