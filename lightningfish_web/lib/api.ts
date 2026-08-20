@@ -60,3 +60,32 @@ export async function probeLocalServer(baseUrl: string): Promise<{
   );
   return json(res);
 }
+
+export interface ServiceHealth {
+  reachable: boolean;
+  anthropicConfigured: boolean;
+  domains: string[];
+}
+
+/**
+ * Whether the Python backend is up at all, and separately whether it has an
+ * Anthropic key configured. The hosted model picker (Haiku/Sonnet/Opus) is
+ * useless without both — a fresh clone with no ANTHROPIC_API_KEY set will
+ * fail on the first real request otherwise, with no warning beforehand.
+ * Network/parse failures collapse to "unreachable" rather than throwing, so
+ * callers can render an offline state without their own try/catch.
+ */
+export async function probeServiceHealth(): Promise<ServiceHealth> {
+  try {
+    const res = await fetch(`${PY}/health`, { cache: "no-store" });
+    if (!res.ok) return { reachable: false, anthropicConfigured: false, domains: [] };
+    const body = await res.json();
+    return {
+      reachable: true,
+      anthropicConfigured: Boolean(body.anthropic_configured),
+      domains: Array.isArray(body.domains) ? body.domains : [],
+    };
+  } catch {
+    return { reachable: false, anthropicConfigured: false, domains: [] };
+  }
+}

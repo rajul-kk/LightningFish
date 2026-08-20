@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { HAS_CLERK } from "@/lib/clerk";
 import {
@@ -13,7 +13,7 @@ import {
   LOCAL_POPULAR_MODELS,
   LOCAL_DEFAULT_BASE_URL,
 } from "@/lib/types";
-import { createSimulation, probeLocalServer } from "@/lib/api";
+import { createSimulation, probeLocalServer, probeServiceHealth, type ServiceHealth } from "@/lib/api";
 
 const PRESETS = {
   fast:     { n_agents: 100, n_rounds: 6  },
@@ -92,6 +92,23 @@ function SimulatePageBody({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Hosted models (Haiku/Sonnet/Opus) call out to the Python backend, which
+  // needs both to be reachable and to have ANTHROPIC_API_KEY set. Neither is
+  // guaranteed on a fresh clone or a paused deployment — without this check
+  // the picker shows three costed, seemingly-live options that fail on the
+  // first real request with no warning beforehand.
+  const [hostedStatus, setHostedStatus] = useState<ServiceHealth | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    probeServiceHealth().then((s) => {
+      if (!cancelled) setHostedStatus(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const hostedAvailable = hostedStatus === null || (hostedStatus.reachable && hostedStatus.anthropicConfigured);
+
   if (!domainMeta) {
     return (
       <div className="max-w-xl mx-auto px-6 py-24 text-fg-muted">
@@ -134,6 +151,19 @@ function SimulatePageBody({ userId }: { userId: string }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    // The model buttons disable themselves when hosted is unavailable, but
+    // `model` still holds whatever was selected before that state resolved
+    // (the Sonnet default, on first load) - without this check that stale
+    // selection would silently submit and fail on the backend instead of
+    // here, where there's actually enough context to say why.
+    if (!useLocalModel && !hostedAvailable) {
+      setError(
+        !hostedStatus?.reachable
+          ? "Can't reach the Python backend. Start it, or switch to local inference below."
+          : "No ANTHROPIC_API_KEY configured on the backend. Switch to local inference below, or set one."
+      );
+      return;
+    }
     setLoading(true);
     try {
       const agent_config = normalizedConfig(archetypes, enabled, customProps);
@@ -252,15 +282,25 @@ function SimulatePageBody({ userId }: { userId: string }) {
 
         {/* Model picker */}
         <div>
-          <label className="eyebrow block mb-2">Model</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="eyebrow">Model</label>
+            {hostedStatus !== null && !hostedAvailable && (
+              <span className="pill-neg !py-0.5 !px-2">
+                {!hostedStatus.reachable ? "backend offline" : "no API key configured"}
+              </span>
+            )}
+          </div>
           <div className="grid grid-cols-3 gap-2">
             {MODELS.map((m) => (
               <button
                 key={m.id}
                 type="button"
+                disabled={!hostedAvailable}
                 onClick={() => setModel(m)}
                 className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
-                  model.id === m.id
+                  !hostedAvailable
+                    ? "border-ink-700 opacity-40 cursor-not-allowed"
+                    : model.id === m.id
                     ? "border-glow/50 bg-glow-dim"
                     : "border-ink-700 hover:border-ink-500"
                 }`}
@@ -271,9 +311,18 @@ function SimulatePageBody({ userId }: { userId: string }) {
               </button>
             ))}
           </div>
-          <p className="text-xs text-fg-faint mt-2 font-mono">
-            Estimated cost: ~${estimateCost(nAgents, nRounds, model)}
-          </p>
+          {hostedAvailable ? (
+            <p className="text-xs text-fg-faint mt-2 font-mono">
+              Estimated cost: ~${estimateCost(nAgents, nRounds, model)}
+            </p>
+          ) : (
+            <p className="text-xs text-spark mt-2">
+              {!hostedStatus?.reachable
+                ? "Can't reach the Python backend — hosted models are unavailable until it's running."
+                : "The backend has no ANTHROPIC_API_KEY set — hosted models will fail on the first request."}
+              {" "}Use local inference below instead.
+            </p>
+          )}
         </div>
 
         {/* Local / Self-hosted */}

@@ -27,6 +27,7 @@ from slowapi.errors import RateLimitExceeded
 
 import lightningfish_coding  # noqa: F401
 import lightningfish_finance  # noqa: F401
+import lightningfish_hn  # noqa: F401
 
 from .limiter import limiter
 from .routes import backtest, chat, enrich, keys, local, simulate
@@ -58,4 +59,11 @@ app.include_router(local.router, prefix="/local", tags=["local"])
 @app.get("/health", tags=["meta"])
 def health():
     from lightningfish_core.registry import registry
-    return {"status": "ok", "domains": [a.domain_id for a in registry.all()]}
+    return {
+        "status": "ok",
+        "domains": [a.domain_id for a in registry.all()],
+        # A key being *set* doesn't mean it's valid, but its absence is a
+        # reliable "hosted models will fail" signal the frontend can act on
+        # before the user spends a click finding out the hard way.
+        "anthropic_configured": bool(os.environ.get("ANTHROPIC_API_KEY")),
+    }
