@@ -236,5 +236,5 @@ that a multi-agent simulation must beat its own single-call baseline to justify
 itself — is the part expected to hold up independently of anything specific to
 this codebase.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) §4 for the harness internals and §10 for
-the full findings log.
+The harness itself lives in [`lightningfish_core/backtest.py`](lightningfish_core/backtest.py);
+the "Worked results" table above is the current results summary per domain.

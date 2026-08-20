@@ -14,7 +14,7 @@ Hacker News (fully programmatic, objective, free unauthenticated API):
 
 Hacker News + early comments — the same stories re-seeded with their first
 2h of community reaction, to test whether dynamic signal beats the measured
-submission-only ceiling (ARCHITECTURE.md §10). Requires a prior `hn` run:
+submission-only ceiling (METHODOLOGY.md). Requires a prior `hn` run:
     python -m tests.integration.run_backtest hn-early [limit]
 
 Hacker News controversy — scores whether the crowd SPLITS (dispersion of the

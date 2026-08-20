@@ -2,7 +2,7 @@
 
 Lightningfish simulates how a population of differently-minded people would argue about something — a stock ticker, a GitHub PR, a Hacker News link — using calibrated AI personas that read, react, and try to persuade each other round by round.
 
-**This is a deliberation simulator, not a forecaster.** Every domain has been backtested against real settled outcomes wherever that's possible, and the results are reported honestly — including every place the simulation loses to a naive heuristic. See [ARCHITECTURE.md §10](ARCHITECTURE.md) for the full findings log and [METHODOLOGY.md](METHODOLOGY.md) for the validation protocol behind it. What the engine is actually good for: watching a structured, multi-perspective argument unfold — where a skeptic pushes back, how fast consensus forms (or doesn't), and what the strongest case on each side sounds like.
+**This is a deliberation simulator, not a forecaster.** Every domain has been backtested against real settled outcomes wherever that's possible, and the results are reported honestly — including every place the simulation loses to a naive heuristic. See [METHODOLOGY.md](METHODOLOGY.md) for the validation protocol and a results summary per domain. What the engine is actually good for: watching a structured, multi-perspective argument unfold — where a skeptic pushes back, how fast consensus forms (or doesn't), and what the strongest case on each side sounds like.
 
 Built from scratch, inspired by [OASIS](https://github.com/camel-ai/oasis) and MiroFish.
 
@@ -20,8 +20,6 @@ lightningfish_web/        Next.js 15 frontend (deploys to Vercel)
 ```
 
 Three-tier simulation each round: **T1 originators** (~10%, highest influence) have the LLM write a structured post; **T2 reactors** (~20%, undecided) have the LLM re-evaluate after reading their feed; **T3 drifters** (the rest) update through deterministic herding math. Only ~30% of agents call the LLM per round, keeping cost low while preserving social dynamics.
-
-**For the full mechanics — opinion-update formulas, metrics, validation, and calibration — see [ARCHITECTURE.md](ARCHITECTURE.md).**
 
 ---
 
@@ -149,7 +147,6 @@ Set environment variables in the Vercel dashboard:
 Backtests pull real data and score the simulation's predicted direction against
 actual outcomes, alongside a naive baseline, a single-LLM-call baseline, and a
 majority-class reference, with a binomial significance test. See
-[ARCHITECTURE.md §4](ARCHITECTURE.md) for the harness internals and
 [METHODOLOGY.md](METHODOLOGY.md) for the validation protocol and why the
 single-LLM-call rung is the one that matters.
 

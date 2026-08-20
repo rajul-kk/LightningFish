@@ -106,8 +106,8 @@ export interface LocalStatus {
 
 // qwen2.5:7b first and set as the default below: it's the only local model
 // this project's own backtests were run and validated against. llama3.2 (3B)
-// is documented (ARCHITECTURE.md) as too weak — it drops the structured
-// output format under load, which silently degrades a run's signal.
+// is too weak — it drops the structured output format under load, which
+// silently degrades a run's signal.
 export const LOCAL_POPULAR_MODELS = [
   "qwen2.5:7b",
   "llama3.1:8b",

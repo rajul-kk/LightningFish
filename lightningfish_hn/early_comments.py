@@ -4,7 +4,7 @@ received, as a point-in-time-safe leading indicator of reception.
 
 WHY THIS EXISTS. Submission-only seeds hit a measured ceiling: author karma
 alone predicts the points direction at 69%, no combination of the other static
-fields beats it, and the simulation does not clear it (see ARCHITECTURE.md §10).
+fields beats it, and the simulation does not clear it (METHODOLOGY.md).
 Early community reaction is the one signal class that is genuinely different in
 kind — dynamic rather than static — and so the one lever with real headroom.
 

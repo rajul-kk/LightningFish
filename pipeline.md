@@ -1,10 +1,9 @@
 # Lightningfish — Architecture Pipeline
 
 > **Snapshot from Plan 1** (finance + coding domains only, predates the HN
-> domain and later engine fixes). For the current, maintained technical
-> reference see [ARCHITECTURE.md](ARCHITECTURE.md). Kept here as a pipeline
-> diagram of the Modal/Next.js deployment shape, not a source of truth for
-> current domain/engine mechanics.
+> domain and later engine fixes). Kept here as a pipeline diagram of the
+> Modal/Next.js deployment shape, not a source of truth for current
+> domain/engine mechanics — see [METHODOLOGY.md](METHODOLOGY.md) for that.
 
 ---
 
