@@ -184,6 +184,23 @@ are negative, and were reported as negative:
 | HN points, scaled (n=200) | 50% | 62.5% karma | 51.5% (single_llm 50%) | **fails** — chance, properly powered |
 | HN controversy (n=107) | 55% | 47.7% / 55.1% | 53.3%, but see rule 6 | **invalid run** — wrong axis scored, then a miscalibrated threshold |
 | HN controversy, calibrated (n=74) | 53% | 51% karma / 53% single_llm | **38%** | **fails** — below chance, both issues fixed, valid result |
+| HN controversy, bounded confidence OFF (n=42) | 62% | 38% naive / 62% single_llm | **48%** | **fails** — below both baselines |
+| HN controversy, bounded confidence ON (n=42) | 62% | 38% naive / 62% single_llm | **52%** | **fails** — below both baselines |
+
+The bounded-confidence pair is an A/B, not two independent findings: same event
+pull, same calibration/evaluation split, same threshold-derivation logic — the
+only difference is whether T3's herding update gates on a Hegselmann-Krause
+confidence bound (see engine.py) or never gates. The hypothesis was that this
+produces more realistic multi-modal splits than the jitter-dependent
+fragmentation the engine relied on before. It doesn't move the needle: both
+p-values are nowhere near significant (0.979 off, 0.922 on), and the two
+calibrated thresholds (0.205 vs 0.209) are nearly identical. Diffing the two
+reports event-by-event shows why the 4-point gap isn't signal — 20 of the 42
+events flipped their predicted direction between arms (11 wrong→correct,
+9 correct→wrong), a coin-flip's worth of churn netting out to +2 events. The
+mechanism is real and tested (see the engine's own unit tests), but on this
+axis it doesn't do anything a properly-powered rerun should read as more than
+noise.
 
 The last row is where the protocol earns its keep. Enriching the seed with early
 comments raised the *baseline* from 69% to 86% — so a simulation scored only

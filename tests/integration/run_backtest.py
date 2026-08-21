@@ -421,7 +421,9 @@ def _run_hn_controversy(args: list[str]) -> None:
         )
 
 
-def _run_hn_controversy_calibrated(args: list[str], bounded_confidence: bool = True) -> None:
+def _run_hn_controversy_calibrated(
+    args: list[str], bounded_confidence: bool = True, coevolving_network: bool = False,
+) -> None:
     """
     Same question as hn-controversy — does the crowd split — but derives the
     stddev threshold from a held-out calibration batch instead of trusting
@@ -438,6 +440,12 @@ def _run_hn_controversy_calibrated(args: list[str], bounded_confidence: bool = T
     reproduces the pre-bounded-confidence T3 update (every gate at 2.0, never
     fires), so this same harness A/B-tests the mechanism against the ground
     truth it was proposed to help with, rather than assuming the effect.
+    METHODOLOGY.md's "Worked results" table found this doesn't move the axis
+    (n=42, 48% off vs 52% on, both below baseline, both non-significant).
+
+    coevolving_network: passed to engine.run. False (default) is the fixed
+    follower graph every other run in this file uses. True rewires it each
+    round via rewire_follower_graph — untested against this ground truth yet.
     """
     import hashlib
 
@@ -482,8 +490,13 @@ def _run_hn_controversy_calibrated(args: list[str], bounded_confidence: bool = T
     # cache key: it is byte-identical to every run before this mechanism existed
     # (confidence_bound didn't exist, so the gate never fired), so the control
     # arm of this A/B replays cached results instead of re-spending on calls
-    # that would produce the same numbers.
-    run_key = f"{model}:{n_agents}x{n_rounds}" + (":bc1" if bounded_confidence else "")
+    # that would produce the same numbers. Same idea for coevolving_network:
+    # False is the untagged, always-existing behavior.
+    run_key = (
+        f"{model}:{n_agents}x{n_rounds}"
+        + (":bc1" if bounded_confidence else "")
+        + (":net1" if coevolving_network else "")
+    )
 
     def _simulate(events_: list, label: str) -> list:
         pairs_ = []
@@ -499,7 +512,9 @@ def _run_hn_controversy_calibrated(args: list[str], bounded_confidence: bool = T
                 )
             else:
                 agents = filter_adapter.build_personas(n_agents, bounded_confidence=bounded_confidence)
-                result = engine.run(ev.seed, agents, n_rounds=n_rounds)
+                result = engine.run(
+                    ev.seed, agents, n_rounds=n_rounds, coevolving_network=coevolving_network,
+                )
                 cache.put_run(ev.event_id, run_key, result)
                 cache.save()
             print(f"  [{label} {i}/{len(events_)}] {ev.event_id}", flush=True)
@@ -523,7 +538,11 @@ def _run_hn_controversy_calibrated(args: list[str], bounded_confidence: bool = T
 
     eval_adapter = CachingAdapter(HNControversyAdapter(stddev_threshold=threshold), cache)
     report = score_precomputed(eval_adapter, eval_pairs, baselines=_baselines(eval_adapter, engine))
-    label = f"hn controversy, calibrated threshold={threshold:.3f}, bounded_confidence={bounded_confidence} (held-out eval)"
+    label = (
+        f"hn controversy, calibrated threshold={threshold:.3f}, "
+        f"bounded_confidence={bounded_confidence}, coevolving_network={coevolving_network} "
+        f"(held-out eval)"
+    )
     _print_report(label, report)
 
     sim_dirs = [o.sim_direction for o in report.outcomes]
@@ -540,6 +559,7 @@ def main() -> None:
     if len(sys.argv) < 2 or sys.argv[1] not in (
         "coding", "finance", "hn", "hn-early", "hn-controversy",
         "hn-controversy-calibrated", "hn-controversy-calibrated-nobc",
+        "hn-controversy-calibrated-network",
     ):
         print(__doc__)
         sys.exit(0)
@@ -556,6 +576,11 @@ def main() -> None:
     elif sys.argv[1] == "hn-controversy-calibrated-nobc":
         # A/B control: bounded confidence off, same events/cache/threshold logic.
         _run_hn_controversy_calibrated(sys.argv[2:], bounded_confidence=False)
+    elif sys.argv[1] == "hn-controversy-calibrated-network":
+        # A/B: co-evolving follower graph on, bounded confidence at its default
+        # (True) — isolates the network-rewiring effect against the
+        # already-run bc=True/network=False result as its control.
+        _run_hn_controversy_calibrated(sys.argv[2:], coevolving_network=True)
     else:
         _run_hn(sys.argv[2:])
 
