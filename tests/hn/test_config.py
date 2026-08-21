@@ -1,4 +1,4 @@
-from lightningfish_core.models import EnrichedSeed, GroundTruthRecord
+from lightningfish_core.models import AgentPersona, EnrichedSeed, GroundTruthRecord
 from lightningfish_hn.config import HNCommentsAdapter, HNDomainAdapter
 
 
@@ -38,6 +38,30 @@ def test_naive_prediction_never_ties_when_signals_disagree():
     a = HNDomainAdapter()
     karma_no_url = _seed({"author_karma": 5000, "url": ""})
     assert a.naive_prediction(karma_no_url) != 0
+
+
+def _persona(**metadata) -> AgentPersona:
+    return AgentPersona(
+        unique_id="x", archetype="GreybeardCynic", opinion_resistance=0.5,
+        recency_bias=0.5, contrarian_tendency=0.5, influence_weight=0.5,
+        proportion=0.1, metadata=metadata,
+    )
+
+
+def test_prompts_omit_track_record_line_when_absent():
+    a = HNDomainAdapter()
+    persona = _persona()
+    seed = _seed({})
+    assert "track record" not in a.agent_system_prompt(seed, persona)
+    assert "track record" not in a.post_system_prompt(seed, persona, [], None)
+
+
+def test_prompts_include_track_record_line_when_present():
+    a = HNDomainAdapter()
+    persona = _persona(track_record=(6, 10))
+    seed = _seed({})
+    assert "correct 6/10 times" in a.agent_system_prompt(seed, persona)
+    assert "correct 6/10 times" in a.post_system_prompt(seed, persona, [], None)
     url_no_karma = _seed({"author_karma": 0, "url": "https://example.com"})
     assert a.naive_prediction(url_no_karma) != 0
 

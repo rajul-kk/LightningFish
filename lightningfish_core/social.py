@@ -21,11 +21,18 @@ class SocialPost:
 
 
 class PostStore:
-    def __init__(self) -> None:
+    def __init__(self, excluded_argument_tags: "set[str] | None" = None) -> None:
         self._posts: list[SocialPost] = []
         self._by_round: dict[int, list[SocialPost]] = {}
+        # Counterfactual replay lever: a post tagged with one of these never
+        # enters circulation, so it can't appear in any feed, as the viral
+        # post, or in the argument timeline — "this argument was never
+        # raised," not "was raised but discounted."
+        self._excluded_tags = excluded_argument_tags or set()
 
     def add(self, post: SocialPost) -> None:
+        if post.argument_tag in self._excluded_tags:
+            return
         self._posts.append(post)
         self._by_round.setdefault(post.round_number, []).append(post)
 
@@ -100,3 +107,60 @@ class SocialMetrics:
     cascade_trigger_archetype: str | None
     settled_fraction: float            # fraction of agents no longer updating
     parse_success_rate: float = 1.0    # fraction of T1 posts whose format parsed cleanly
+    network_churn: float = 0.0         # fraction of follow-edges that changed this round (0 when static)
+
+
+def rewire_follower_graph(
+    agents: list[AgentPersona],
+    graph: dict[str, set[str]],
+    disagreement_bound: float = 1.2,
+    n_influencers: int = 3,
+    n_peers: int = 2,
+) -> tuple[dict[str, set[str]], float]:
+    """
+    Reconsider each agent's follow list against CURRENT opinions: drop a
+    followed peer whose opinion has drifted more than disagreement_bound away
+    and refill from same-archetype accounts within the bound. Top-influence
+    accounts are exempt from dropping — they're followed for reach, not
+    agreement, same as build_follower_graph — so only the echo-chamber slots
+    actually rewire; that's the mechanism this models: people don't unfollow
+    the loudest voice in the room, they unfollow peers who turned out to
+    disagree.
+
+    Returns (new_graph, churn) where churn is the fraction of all edges
+    across all agents that changed, for the round's SocialMetrics.
+    """
+    by_id = {a.unique_id: a for a in agents}
+    top_ids = {
+        a.unique_id
+        for a in sorted(agents, key=lambda a: a.influence_weight, reverse=True)[:n_influencers]
+    }
+    by_arch: dict[str, list[str]] = {}
+    for a in agents:
+        by_arch.setdefault(a.archetype, []).append(a.unique_id)
+
+    new_graph: dict[str, set[str]] = {}
+    changed_edges = 0
+    total_edges = 0
+    for a in agents:
+        current = graph.get(a.unique_id, set())
+        kept = {
+            fid for fid in current
+            if fid in top_ids or (
+                fid in by_id
+                and abs(by_id[fid].current_opinion - a.current_opinion) <= disagreement_bound
+            )
+        }
+        peer_slots = max(0, n_peers - len(kept - top_ids))
+        candidates = [
+            x for x in by_arch[a.archetype]
+            if x != a.unique_id and x not in kept
+            and abs(by_id[x].current_opinion - a.current_opinion) <= disagreement_bound
+        ]
+        refill = random.sample(candidates, min(peer_slots, len(candidates))) if candidates else []
+        followed = (kept | top_ids | set(refill)) - {a.unique_id}
+        new_graph[a.unique_id] = followed
+        changed_edges += len(current ^ followed)
+        total_edges += len(current | followed)
+    churn = changed_edges / total_edges if total_edges else 0.0
+    return new_graph, churn

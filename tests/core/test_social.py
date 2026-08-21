@@ -8,6 +8,7 @@ from lightningfish_core.social import (
     SocialMetrics,
     SocialPost,
     build_follower_graph,
+    rewire_follower_graph,
 )
 
 
@@ -29,6 +30,57 @@ def test_follower_graph_everyone_follows_top_influencers():
         # every non-influencer follows all three top influencers
         if a.unique_id not in top_ids:
             assert top_ids <= followed
+
+
+def test_rewire_drops_a_peer_who_drifted_past_the_bound():
+    # No top-influencers in play (n_influencers=0) so only the peer-slot logic
+    # is exercised. a follows peer initially; peer's opinion then drifts far
+    # away, and rewiring should drop it in favor of a closer same-archetype peer.
+    a = _agent(0.3)
+    peer_far = _agent(0.3)
+    peer_close = _agent(0.3)
+    agents = [a, peer_far, peer_close]
+    a.current_opinion = 0.0
+    peer_far.current_opinion = 0.9        # outside the 0.5 bound
+    peer_close.current_opinion = 0.1      # inside the 0.5 bound
+
+    graph = {a.unique_id: {peer_far.unique_id}, peer_far.unique_id: set(), peer_close.unique_id: set()}
+    new_graph, churn = rewire_follower_graph(
+        agents, graph, disagreement_bound=0.5, n_influencers=0, n_peers=1
+    )
+    assert peer_far.unique_id not in new_graph[a.unique_id]
+    assert peer_close.unique_id in new_graph[a.unique_id]
+    assert churn > 0.0
+
+
+def test_rewire_never_drops_a_top_influencer_for_disagreement():
+    influencer = _agent(0.95)
+    a = _agent(0.2)
+    agents = [influencer, a]
+    a.current_opinion = -0.9
+    influencer.current_opinion = 0.9  # maximally disagreeing, but still top-influence
+
+    graph = {a.unique_id: {influencer.unique_id}, influencer.unique_id: set()}
+    new_graph, _ = rewire_follower_graph(
+        agents, graph, disagreement_bound=0.1, n_influencers=1, n_peers=0
+    )
+    assert influencer.unique_id in new_graph[a.unique_id]
+
+
+def test_rewire_is_a_no_op_when_nothing_has_drifted():
+    a = _agent(0.3)
+    peer = _agent(0.3)
+    agents = [a, peer]
+    a.current_opinion = 0.0
+    peer.current_opinion = 0.05
+
+    graph = {a.unique_id: {peer.unique_id}, peer.unique_id: {a.unique_id}}
+    new_graph, churn = rewire_follower_graph(
+        agents, graph, disagreement_bound=1.0, n_influencers=0, n_peers=1
+    )
+    assert new_graph[a.unique_id] == {peer.unique_id}
+    assert new_graph[peer.unique_id] == {a.unique_id}
+    assert churn == 0.0
 
 
 def test_sample_for_feed_respects_followed_ids():

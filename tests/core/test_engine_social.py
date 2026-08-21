@@ -167,6 +167,113 @@ def test_momentum_carries_opinion_forward():
     assert all(a.current_opinion > 0.5 for a in agents)
 
 
+def test_bounded_confidence_gates_out_a_distant_herding_target():
+    from lightningfish_core.engine import SimulationEngine
+
+    engine = SimulationEngine(_StubAdapter())
+    engine.provider = MagicMock()  # no T1/T2 will fire (see agent params below)
+
+    # All T3, no momentum (single-entry history), herding_coefficient strong
+    # enough that without gating the agent would move noticeably toward the
+    # crowd. confidence_bound=0.1 puts everyone else's opinion (~0.9 away)
+    # outside the gate, so this agent should not move at all.
+    gated = AgentPersona(
+        unique_id=str(uuid.uuid4()), archetype="Analyst",
+        opinion_resistance=0.5, recency_bias=0.5, contrarian_tendency=0.0,
+        influence_weight=0.3, proportion=0.1, herding_coefficient=0.9,
+        confidence_bound=0.1, current_opinion=-0.9,
+    )
+    crowd = []
+    for _ in range(9):
+        crowd.append(AgentPersona(
+            unique_id=str(uuid.uuid4()), archetype="Analyst",
+            opinion_resistance=0.5, recency_bias=0.5, contrarian_tendency=0.0,
+            influence_weight=0.3, proportion=0.1, herding_coefficient=0.9,
+            confidence_bound=2.0, current_opinion=0.9,
+        ))
+
+    events = list(engine.run_streaming(_seed(), [gated, *crowd], n_rounds=1))
+    assert events[0].tier1_calls == 0  # confirms nobody was T1
+    assert gated.current_opinion == -0.9
+
+
+def test_bounded_confidence_default_never_gates():
+    # confidence_bound defaults to 2.0, the max possible opinion distance, so
+    # existing callers that don't set it see unchanged T3 behavior.
+    from lightningfish_core.engine import SimulationEngine
+
+    engine = SimulationEngine(_StubAdapter())
+    engine.provider = MagicMock()
+
+    agent = AgentPersona(
+        unique_id=str(uuid.uuid4()), archetype="Analyst",
+        opinion_resistance=0.5, recency_bias=0.5, contrarian_tendency=0.0,
+        influence_weight=0.3, proportion=0.1, herding_coefficient=0.9,
+        current_opinion=-0.9,
+    )
+    crowd = []
+    for _ in range(9):
+        crowd.append(AgentPersona(
+            unique_id=str(uuid.uuid4()), archetype="Analyst",
+            opinion_resistance=0.5, recency_bias=0.5, contrarian_tendency=0.0,
+            influence_weight=0.3, proportion=0.1, herding_coefficient=0.9,
+            current_opinion=0.9,
+        ))
+
+    list(engine.run_streaming(_seed(), [agent, *crowd], n_rounds=1))
+    assert agent.current_opinion > -0.9  # moved toward the crowd, ungated
+
+
+def test_excluded_argument_tag_never_appears_in_timeline_or_samples():
+    engine = _make_engine()  # generate_post always returns argument_tag="a"
+    result = engine.run(_seed(), _agents(20), n_rounds=3, excluded_argument_tags={"a"})
+    assert "a" not in result.argument_timeline
+    assert all(p.argument_tag != "a" for e in result.round_events for p in e.sample_posts)
+
+
+def test_unexcluded_run_has_the_argument_present():
+    # Control: same setup, nothing excluded — confirms the exclusion in the
+    # test above is actually suppressing something, not just always empty.
+    engine = _make_engine()
+    result = engine.run(_seed(), _agents(20), n_rounds=3)
+    assert "a" in result.argument_timeline
+
+
+def test_excluded_tag_post_never_enters_a_later_feed():
+    from lightningfish_core.engine import SimulationEngine
+    from lightningfish_core.social import SocialPost
+
+    engine = SimulationEngine(_StubAdapter())
+    mock_provider = MagicMock()
+    tagged_post = SocialPost(
+        agent_id="author", archetype="Analyst", round_number=1,
+        stance="bullish", argument_tag="banned", confidence=0.9,
+        blurb="the argument that must not spread", opinion_before=0.1, opinion_after=0.3,
+    )
+    mock_provider.generate_post.return_value = (tagged_post, 0.3, 0.001)
+    mock_provider.get_opinion.return_value = (0.3, 0.001)
+    engine.provider = mock_provider
+
+    result = engine.run(_seed(), _agents(20), n_rounds=3, excluded_argument_tags={"banned"})
+    assert all(p.argument_tag != "banned" for e in result.round_events for p in e.sample_posts)
+    assert "banned" not in result.argument_timeline
+
+
+def test_coevolving_network_off_by_default_has_zero_churn():
+    engine = _make_engine()
+    events = list(engine.run_streaming(_seed(), _agents(20), n_rounds=3))
+    assert all(e.social_metrics.network_churn == 0.0 for e in events)
+
+
+def test_coevolving_network_on_reports_a_churn_value():
+    engine = _make_engine()
+    events = list(engine.run_streaming(
+        _seed(), _agents(20), n_rounds=3, coevolving_network=True,
+    ))
+    for e in events:
+        assert 0.0 <= e.social_metrics.network_churn <= 1.0
+
+
 def test_low_confidence_flag_set_when_parses_fail():
     from lightningfish_core.engine import SimulationEngine
 

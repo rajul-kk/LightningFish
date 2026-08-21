@@ -169,9 +169,14 @@ class CachingAdapter(DomainAdapter):
         return self._inner.enrich_seed(raw_input)
 
     def build_personas(
-        self, n_agents: int, archetype_config: dict[str, float] | None = None
+        self, n_agents: int, archetype_config: dict[str, float] | None = None, **kwargs
     ) -> list[AgentPersona]:
-        return self._inner.build_personas(n_agents, archetype_config)
+        # **kwargs forwards domain-specific extras (e.g. HN's bounded_confidence,
+        # memory) that aren't part of the base DomainAdapter signature — without
+        # this, a wrapped adapter silently rejects them instead of ignoring or
+        # applying them (METHODOLOGY.md rule 6: this exact wrapper already broke
+        # once by reimplementing a hook instead of forwarding through it).
+        return self._inner.build_personas(n_agents, archetype_config, **kwargs)
 
     def agent_system_prompt(self, seed: EnrichedSeed, persona: AgentPersona) -> str:
         return self._inner.agent_system_prompt(seed, persona)

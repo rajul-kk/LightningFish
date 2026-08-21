@@ -45,6 +45,16 @@ _HN_TAXONOMY = [
 _KARMA_REFERENCE = 500
 
 
+def _track_record_line(persona: AgentPersona) -> str:
+    """Cross-run calibration context, if build_personas was given a
+    PersonaMemoryStore — empty string (no prompt change) otherwise."""
+    record = persona.metadata.get("track_record")
+    if not record:
+        return ""
+    correct, total = record
+    return f"- Your archetype's track record: correct {correct}/{total} times in past debates like this one\n"
+
+
 class HNDomainAdapter(DomainAdapter):
     domain_id = "hn"
     display_name = "Hacker News Reception"
@@ -57,8 +67,12 @@ class HNDomainAdapter(DomainAdapter):
         self,
         n_agents: int,
         archetype_config: dict[str, float] | None = None,
+        bounded_confidence: bool = True,
+        memory=None,
     ) -> list[AgentPersona]:
-        return build_hn_personas(n_agents, archetype_config)
+        return build_hn_personas(
+            n_agents, archetype_config, bounded_confidence=bounded_confidence, memory=memory,
+        )
 
     def agent_system_prompt(self, seed: EnrichedSeed, persona: AgentPersona) -> str:
         return (
@@ -69,8 +83,9 @@ class HNDomainAdapter(DomainAdapter):
             f"Your characteristics:\n"
             f"- Opinion resistance: {persona.opinion_resistance} (1=rarely changes reaction)\n"
             f"- Recency bias: {persona.recency_bias} (1=highly reactive to what others just posted)\n"
-            f"- Current opinion: {persona.current_opinion:.2f} (-1=will flop, +1=will go viral)\n\n"
-            f"Output your predicted reception as a single float between -1.0 (flop) and 1.0 "
+            f"- Current opinion: {persona.current_opinion:.2f} (-1=will flop, +1=will go viral)\n"
+            f"{_track_record_line(persona)}"
+            f"\nOutput your predicted reception as a single float between -1.0 (flop) and 1.0 "
             f"(go viral). Output ONLY the number."
         )
 
@@ -94,8 +109,9 @@ class HNDomainAdapter(DomainAdapter):
             f"Submission: {seed.summary}\n\n"
             f"{feed_section}"
             f"{viral_section}"
-            f"Your current opinion: {persona.current_opinion:.2f} (-1=will flop, +1=will go viral)\n\n"
-            f"Write a short comment in the following EXACT format:\n"
+            f"Your current opinion: {persona.current_opinion:.2f} (-1=will flop, +1=will go viral)\n"
+            f"{_track_record_line(persona)}"
+            f"\nWrite a short comment in the following EXACT format:\n"
             f"STANCE: viral|flop\n"
             f"TAG: one of [{taxonomy_str}]\n"
             f"CONFIDENCE: 0.0-1.0\n"

@@ -1,5 +1,6 @@
 import statistics
 
+from lightningfish_core.persona_memory import PersonaMemoryStore
 from lightningfish_hn.personas import build_hn_personas
 
 
@@ -36,3 +37,25 @@ def test_archetype_config_override_normalizes_proportions():
     personas = build_hn_personas(100, archetype_config={"GreybeardCynic": 1.0})
     assert {p.archetype for p in personas} == {"GreybeardCynic"}
     assert len(personas) == 100
+
+
+def test_no_memory_leaves_metadata_empty():
+    personas = build_hn_personas(20)
+    assert all(p.metadata == {} for p in personas)
+
+
+def test_memory_injects_track_record_for_scored_archetype(tmp_path):
+    memory = PersonaMemoryStore(tmp_path / "memory.json")
+    for _ in range(6):
+        memory.record("hn", "GreybeardCynic", correct=True)
+    for _ in range(4):
+        memory.record("hn", "GreybeardCynic", correct=False)
+
+    personas = build_hn_personas(100, archetype_config={"GreybeardCynic": 1.0}, memory=memory)
+    assert all(p.metadata["track_record"] == (6, 10) for p in personas)
+
+
+def test_memory_is_none_for_an_archetype_never_scored(tmp_path):
+    memory = PersonaMemoryStore(tmp_path / "memory.json")  # empty — nothing recorded
+    personas = build_hn_personas(20, archetype_config={"GreybeardCynic": 1.0}, memory=memory)
+    assert all(p.metadata["track_record"] is None for p in personas)

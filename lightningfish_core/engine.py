@@ -8,7 +8,7 @@ from .llm_provider import LLMProvider, make_provider
 from .models import AgentPersona, EnrichedSeed, RoundEvent, SimulationResult
 from .resistance import blend_opinion
 from .rule_agent import RuleBasedAgent
-from .social import PostStore, SocialMetrics, SocialPost, build_follower_graph
+from .social import PostStore, SocialMetrics, SocialPost, build_follower_graph, rewire_follower_graph
 from .tier_router import SettledTracker, TierRouter
 
 _T2_USER_MSG = "Output ONLY the number, nothing else."
@@ -80,6 +80,8 @@ class SimulationEngine:
         seed: EnrichedSeed,
         agents: list[AgentPersona],
         n_rounds: int,
+        excluded_argument_tags: "set[str] | None" = None,
+        coevolving_network: bool = False,
     ):
         """
         Generator yielding RoundEvent after each round.
@@ -92,8 +94,26 @@ class SimulationEngine:
                     event = next(gen)
             except StopIteration as e:
                 result = e.value
+
+        excluded_argument_tags: counterfactual replay lever. A T1 post tagged
+        with one of these never enters circulation — not shown in any later
+        feed, never the viral post, absent from the argument timeline and
+        round diversity metrics. This suppresses an argument's influence on
+        everyone who would have read it; it does not retroactively change
+        what its own author privately concluded that round (their opinion
+        update already happened by the time the tag is known). Run the same
+        seed/agents/rounds twice, once with a tag excluded, to see what a
+        specific argument was worth to the outcome.
+
+        coevolving_network: default False reproduces the existing behavior —
+        the follower graph is built once from influence_weight/archetype and
+        never changes. True rewires it after every round via
+        rewire_follower_graph: peer slots drop a followed account once its
+        opinion has drifted too far and refill from closer same-archetype
+        accounts, so echo chambers form as a consequence of the debate rather
+        than being fixed at round 0. Top-influence accounts are never dropped.
         """
-        store = PostStore()
+        store = PostStore(excluded_argument_tags=excluded_argument_tags)
         tracker = SettledTracker()
         follower_graph = build_follower_graph(agents)
         settled_ids: set[str] = set()
@@ -161,7 +181,8 @@ class SimulationEngine:
                 post.opinion_after = blended
                 agent.current_opinion = blended
                 store.add(post)
-                round_posts.append(post)
+                if post.argument_tag not in (excluded_argument_tags or set()):
+                    round_posts.append(post)
 
             total_cost_usd += round_cost
 
@@ -197,6 +218,11 @@ class SimulationEngine:
                     # damping would shrink their divergence toward zero and remove
                     # the force that produces bifurcation.
                     effective_λ = λ * (1.0 - agent.contrarian_tendency) if λ >= 0 else λ
+                    # Bounded confidence (Hegselmann-Krause): a target too far from
+                    # the agent's own opinion is ignored outright rather than
+                    # damped, so this round is momentum-only for that agent.
+                    if abs(agent.current_opinion - target) > agent.confidence_bound:
+                        effective_λ = 0.0
                     # Own momentum: last round's opinion change carries forward.
                     hist = agent.opinion_history
                     momentum = (hist[-1] - hist[-2]) if len(hist) >= 2 else 0.0
@@ -210,6 +236,13 @@ class SimulationEngine:
             # — Record end-of-round opinion so agents carry a trajectory (memory) —
             for agent in agents:
                 agent.opinion_history.append(agent.current_opinion)
+
+            # — Rewire the follower graph against the opinions just recorded, so
+            #   next round's feeds reflect who agents would still choose to
+            #   follow, not who they followed before anyone had said anything —
+            network_churn = 0.0
+            if coevolving_network:
+                follower_graph, network_churn = rewire_follower_graph(agents, follower_graph)
 
             # — Update settled tracker —
             settled_ids = tracker.update(agents)
@@ -270,6 +303,7 @@ class SimulationEngine:
                 cascade_trigger_archetype=trigger,
                 settled_fraction=len(settled_ids) / max(len(agents), 1),
                 parse_success_rate=parse_success_rate,
+                network_churn=network_churn,
             )
 
             trajectory.append(mean_op)
@@ -309,8 +343,10 @@ class SimulationEngine:
         seed: EnrichedSeed,
         agents: list[AgentPersona],
         n_rounds: int,
+        excluded_argument_tags: "set[str] | None" = None,
+        coevolving_network: bool = False,
     ) -> SimulationResult:
-        gen = self.run_streaming(seed, agents, n_rounds)
+        gen = self.run_streaming(seed, agents, n_rounds, excluded_argument_tags, coevolving_network)
         try:
             while True:
                 next(gen)

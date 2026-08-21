@@ -26,7 +26,9 @@ class _StubAdapter(DomainAdapter):
         self.ground_truth_calls = 0
 
     def enrich_seed(self, r): return _seed("x")
-    def build_personas(self, n, archetype_config=None): return []
+    def build_personas(self, n, archetype_config=None, **kwargs):
+        self.last_build_personas_kwargs = kwargs
+        return []
     def agent_system_prompt(self, seed, persona): return ""
     def argument_taxonomy(self): return ["a", "b", "c", "d", "e", "f", "g", "h"]
     def post_system_prompt(self, seed, persona, feed, viral): return ""
@@ -185,6 +187,23 @@ def test_caching_adapter_delegates_every_domainadapter_hook():
         f"silently use DomainAdapter's default instead of the wrapped adapter's "
         f"behaviour for these hooks."
     )
+
+
+def test_caching_adapter_forwards_extra_build_personas_kwargs(tmp_path):
+    """
+    Same class of bug as sim_direction above, caught the same day it was
+    introduced: HN's build_personas grew domain-specific kwargs
+    (bounded_confidence, memory) that aren't part of the base DomainAdapter
+    signature. CachingAdapter.build_personas called the inner adapter with
+    only (n_agents, archetype_config), so any wrapped call passing those
+    kwargs raised TypeError instead of reaching the inner adapter — found
+    when the actual backtest CLI hit it, not by this test (it didn't exist
+    yet). It does now.
+    """
+    inner = _StubAdapter()
+    wrapped = CachingAdapter(inner, EventCache("stub", cache_dir=tmp_path))
+    wrapped.build_personas(10, bounded_confidence=False, memory="anything")
+    assert inner.last_build_personas_kwargs == {"bounded_confidence": False, "memory": "anything"}
 
 
 def test_caching_adapter_sim_direction_uses_the_wrapped_adapters_logic(tmp_path):
