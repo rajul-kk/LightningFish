@@ -186,6 +186,9 @@ are negative, and were reported as negative:
 | HN controversy, calibrated (n=74) | 53% | 51% karma / 53% single_llm | **38%** | **fails** — below chance, both issues fixed, valid result |
 | HN controversy, bounded confidence OFF (n=42) | 62% | 38% naive / 62% single_llm | **48%** | **fails** — below both baselines |
 | HN controversy, bounded confidence ON (n=42) | 62% | 38% naive / 62% single_llm | **52%** | **fails** — below both baselines |
+| HN controversy, bc off / network off (n=53) | 58% | 42% naive / 58% single_llm | **51%** | **fails** — below both baselines |
+| HN controversy, bc on / network off (n=53) | 58% | 42% naive / 58% single_llm | **55%** | **fails** — below both baselines |
+| HN controversy, bc on / network on (n=53) | 58% | 42% naive / 58% single_llm | **47%** | **fails** — below both baselines |
 
 The bounded-confidence pair is an A/B, not two independent findings: same event
 pull, same calibration/evaluation split, same threshold-derivation logic — the
@@ -201,6 +204,21 @@ events flipped their predicted direction between arms (11 wrong→correct,
 mechanism is real and tested (see the engine's own unit tests), but on this
 axis it doesn't do anything a properly-powered rerun should read as more than
 noise.
+
+The three-way n=53 set is a separate, larger pull with all three flag
+combinations run against the same events — a second independent sample that
+happens to also test co-evolving follower rewiring (`rewire_follower_graph`,
+see engine.py). It confirms the same pattern rather than adding a new one: bc
+on/off on this pull moves 51%→55% (+4 points, same size and direction as the
+n=42 result, still not significant, p=0.895 vs p=0.758), and layering the
+network mechanism on top of bc-on moves 55%→47%, the lowest of the three. That
+looks like network rewiring actively hurts, but diffing it against its actual
+control (bc on/network off) shows 28 of 53 events flipped direction — 12
+helped, 16 hurt — the same coin-flip-scale churn as everything else on this
+axis, just landing slightly net-negative this time instead of net-positive.
+Neither mechanism has moved this axis in either pull; both remain **fails**,
+and the honest read is that the churn itself — not the sign of any one
+run — is the finding.
 
 The last row is where the protocol earns its keep. Enriching the seed with early
 comments raised the *baseline* from 69% to 86% — so a simulation scored only
