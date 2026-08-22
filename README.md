@@ -253,9 +253,9 @@ All proportions are configurable in the simulation form.
 
 | Model | Input | Output | Use when |
 |---|---|---|---|
-| Haiku 4.5 | $0.80/M | $4/M | Fast iteration, cost control |
-| Sonnet 4.6 | $3/M | $15/M | Default — balanced |
-| Opus 4.8 | $15/M | $75/M | Highest reasoning quality |
+| Haiku 4.5 | $1/M | $5/M | Fast iteration, cost control |
+| Sonnet 5 | $3/M | $15/M | Default — balanced |
+| Opus 5 | $5/M | $25/M | Highest reasoning quality |
 | Ollama (local) | $0 | $0 | Free local testing via `ollama:<model>` |
 
 Typical cost per simulation (300 agents, 10 rounds, Sonnet): ~$0.05.
