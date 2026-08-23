@@ -15,6 +15,16 @@ about as much as this run-to-run noise floor isn't demonstrated to matter;
 only a delta clearly outside that floor is. This module doesn't estimate that
 floor itself (that would need repeated baseline runs, which costs as much as
 the whole sensitivity sweep again) — treat small deltas skeptically.
+
+Confirmed in practice, not just in theory: a real run against local Ollama
+inference at default temperature showed tags that were never even posted in
+the baseline still carrying deltas as large as or larger than tags that
+actually appeared — the noise floor was bigger than the effect being
+measured. The caller should construct ``engine`` with a low ``temperature``
+(SimulationEngine's own knob, not something this module sets) specifically
+for this use — a normal simulation run should NOT do this, since sampling
+variance is what makes personas diverge from each other in the first place.
+Low temperature shrinks the floor; it does not eliminate it.
 """
 from __future__ import annotations
 

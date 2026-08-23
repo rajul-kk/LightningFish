@@ -104,7 +104,9 @@ def _parse_batch_opinions(raw: str, n: int) -> list[float]:
 
 @runtime_checkable
 class LLMProvider(Protocol):
-    def get_opinion(self, system: str, user_msg: str, model: str) -> tuple[float, float]:
+    def get_opinion(
+        self, system: str, user_msg: str, model: str, temperature: float | None = None,
+    ) -> tuple[float, float]:
         """Return (opinion in [-1, 1], cost_usd >= 0)."""
         ...
 
@@ -116,6 +118,7 @@ class LLMProvider(Protocol):
         archetype: str,
         round_number: int,
         opinion_before: float,
+        temperature: float | None = None,
     ) -> "tuple[SocialPost, float, float]":
         """Return (SocialPost, opinion_after, cost_usd)."""
         ...
@@ -124,6 +127,7 @@ class LLMProvider(Protocol):
         self,
         systems: list[str],
         model: str,
+        temperature: float | None = None,
     ) -> tuple[list[float], float]:
         """Return (list of opinion floats, total cost_usd). One opinion per system."""
         ...
@@ -133,12 +137,16 @@ class AnthropicProvider:
     def __init__(self, client: Anthropic) -> None:
         self._client = client
 
-    def get_opinion(self, system: str, user_msg: str, model: str) -> tuple[float, float]:
+    def get_opinion(
+        self, system: str, user_msg: str, model: str, temperature: float | None = None,
+    ) -> tuple[float, float]:
+        kwargs = {"temperature": temperature} if temperature is not None else {}
         response = self._client.messages.create(
             model=model,
             max_tokens=16,
             system=system,
             messages=[{"role": "user", "content": user_msg}],
+            **kwargs,
         )
         block = response.content[0]
         text = block.text.strip() if hasattr(block, "text") else ""
@@ -150,12 +158,15 @@ class AnthropicProvider:
         cost = response.usage.input_tokens * in_cost + response.usage.output_tokens * out_cost
         return opinion, cost
 
-    def generate_post(self, system, model, agent_id, archetype, round_number, opinion_before):
+    def generate_post(self, system, model, agent_id, archetype, round_number, opinion_before,
+                       temperature=None):
+        kwargs = {"temperature": temperature} if temperature is not None else {}
         response = self._client.messages.create(
             model=model,
             max_tokens=120,
             system=system,
             messages=[{"role": "user", "content": _POST_USER_MSG}],
+            **kwargs,
         )
         block = response.content[0]
         raw = block.text.strip() if hasattr(block, "text") else ""
@@ -164,17 +175,19 @@ class AnthropicProvider:
         post, opinion_after = _parse_post_response(raw, agent_id, archetype, round_number, opinion_before)
         return post, opinion_after, cost
 
-    def batch_opinions_from_feed(self, systems, model):
+    def batch_opinions_from_feed(self, systems, model, temperature=None):
         if not systems:
             return [], 0.0
         n = len(systems)
         combined = "\n---\n".join(f"Agent {i + 1}:\n{s}" for i, s in enumerate(systems))
         user_msg = _BATCH_USER_SUFFIX.format(n=n)
+        kwargs = {"temperature": temperature} if temperature is not None else {}
         response = self._client.messages.create(
             model=model,
             max_tokens=n * 8,
             system=combined,
             messages=[{"role": "user", "content": user_msg}],
+            **kwargs,
         )
         block = response.content[0]
         raw = block.text.strip() if hasattr(block, "text") else ""
@@ -197,7 +210,8 @@ class LocalProvider:
     def _bare(self, model: str) -> str:
         return model.split(":", 1)[-1] if ":" in model else model
 
-    def _complete(self, model: str, system: str, user_msg: str, max_tokens: int) -> str:
+    def _complete(self, model: str, system: str, user_msg: str, max_tokens: int,
+                   temperature: float | None = None) -> str:
         """
         One bounded completion. Returns "" when the call times out or errors.
 
@@ -206,6 +220,7 @@ class LocalProvider:
         parse_success_rate / low_confidence. Raising instead would kill a
         multi-hour backtest on one slow request from a loaded local server.
         """
+        kwargs = {"temperature": temperature} if temperature is not None else {}
         try:
             response = self._client.chat.completions.create(
                 model=self._bare(model),
@@ -214,30 +229,35 @@ class LocalProvider:
                     {"role": "system", "content": system},
                     {"role": "user", "content": user_msg},
                 ],
+                **kwargs,
             )
         except Exception:
             return ""
         return (response.choices[0].message.content or "").strip()
 
-    def get_opinion(self, system: str, user_msg: str, model: str) -> tuple[float, float]:
-        text = self._complete(model, system, user_msg, max_tokens=16)
+    def get_opinion(self, system: str, user_msg: str, model: str,
+                     temperature: float | None = None) -> tuple[float, float]:
+        text = self._complete(model, system, user_msg, max_tokens=16, temperature=temperature)
         try:
             opinion = max(-1.0, min(1.0, float(text)))
         except ValueError:
             opinion = 0.0
         return opinion, 0.0
 
-    def generate_post(self, system, model, agent_id, archetype, round_number, opinion_before):
-        raw = self._complete(model, system, _POST_USER_MSG, max_tokens=120)
+    def generate_post(self, system, model, agent_id, archetype, round_number, opinion_before,
+                       temperature=None):
+        raw = self._complete(model, system, _POST_USER_MSG, max_tokens=120, temperature=temperature)
         post, opinion_after = _parse_post_response(raw, agent_id, archetype, round_number, opinion_before)
         return post, opinion_after, 0.0
 
-    def batch_opinions_from_feed(self, systems, model):
+    def batch_opinions_from_feed(self, systems, model, temperature=None):
         if not systems:
             return [], 0.0
         n = len(systems)
         combined = "\n---\n".join(f"Agent {i + 1}:\n{s}" for i, s in enumerate(systems))
-        raw = self._complete(model, combined, _BATCH_USER_SUFFIX.format(n=n), max_tokens=n * 8)
+        raw = self._complete(
+            model, combined, _BATCH_USER_SUFFIX.format(n=n), max_tokens=n * 8, temperature=temperature,
+        )
         return _parse_batch_opinions(raw, n), 0.0
 
 

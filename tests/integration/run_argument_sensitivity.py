@@ -60,6 +60,11 @@ def main() -> None:
     n_agents = int(os.environ.get("LIGHTNINGFISH_N_AGENTS", 24))
     n_rounds = int(os.environ.get("LIGHTNINGFISH_N_ROUNDS", 4))
     limit = int(os.environ.get("LIGHTNINGFISH_SENSITIVITY_LIMIT", 5))
+    # Low, not zero (some providers reject 0.0 or treat it specially) — this
+    # comparison only means something if the baseline and every excluded arm
+    # are as close to identical as sampling allows. A normal simulation run
+    # should NOT use this; it's what makes personas diverge in the first place.
+    temperature = float(os.environ.get("LIGHTNINGFISH_SENSITIVITY_TEMPERATURE", 0.1))
 
     event_ids = _real_event_ids(cache)[:limit]
     if not event_ids:
@@ -67,9 +72,10 @@ def main() -> None:
         sys.exit(1)
 
     taxonomy = adapter.argument_taxonomy()
-    engine = SimulationEngine(adapter, model=model)
+    engine = SimulationEngine(adapter, model=model, temperature=temperature)
     neg, pos = adapter.opinion_labels
     print(f"domain={domain}  model={model}  agents={n_agents}  rounds={n_rounds}  "
+          f"temperature={temperature}\n"
           f"taxonomy={taxonomy}\n"
           f"events={len(event_ids)} (of {len(_real_event_ids(cache))} cached, limited by "
           f"LIGHTNINGFISH_SENSITIVITY_LIMIT)  "

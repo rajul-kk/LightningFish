@@ -274,6 +274,37 @@ def test_coevolving_network_on_reports_a_churn_value():
         assert 0.0 <= e.social_metrics.network_churn <= 1.0
 
 
+def test_temperature_defaults_to_none_and_is_omitted_from_provider_calls():
+    engine = _make_engine()
+    assert engine.temperature is None
+    engine.run(_seed(), _agents(20), n_rounds=2)
+    for call in engine.provider.generate_post.call_args_list:
+        assert call.kwargs["temperature"] is None
+    for call in engine.provider.get_opinion.call_args_list:
+        assert call.kwargs["temperature"] is None
+
+
+def test_temperature_is_forwarded_to_every_provider_call():
+    from lightningfish_core.engine import SimulationEngine
+
+    engine = SimulationEngine(_StubAdapter(), temperature=0.1)
+    fake_post = SocialPost(
+        agent_id="x", archetype="Analyst", round_number=1,
+        stance="bullish", argument_tag="a", confidence=0.7,
+        blurb="b", opinion_before=0.1, opinion_after=0.3,
+    )
+    mock_provider = MagicMock()
+    mock_provider.generate_post.return_value = (fake_post, 0.3, 0.001)
+    mock_provider.get_opinion.return_value = (0.3, 0.001)
+    engine.provider = mock_provider
+
+    engine.run(_seed(), _agents(20), n_rounds=2)
+    for call in engine.provider.generate_post.call_args_list:
+        assert call.kwargs["temperature"] == 0.1
+    for call in engine.provider.get_opinion.call_args_list:
+        assert call.kwargs["temperature"] == 0.1
+
+
 def test_low_confidence_flag_set_when_parses_fail():
     from lightningfish_core.engine import SimulationEngine
 

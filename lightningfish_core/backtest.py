@@ -93,6 +93,7 @@ def llm_baseline(adapter: DomainAdapter, engine: SimulationEngine) -> Callable[[
             adapter.baseline_llm_prompt(event.seed),
             "Output ONLY the number.",
             engine.model,
+            temperature=engine.temperature,
         )
         return sign(opinion)
     return predict

@@ -61,10 +61,11 @@ class SimulationEngine:
     def __init__(
         self,
         adapter: DomainAdapter,
-        model: str = "claude-sonnet-4-6",
+        model: str = "claude-sonnet-5",
         base_url: str | None = None,
         global_herd_weight: float = _GLOBAL_HERD_WEIGHT,
         momentum_weight: float = _MOMENTUM_WEIGHT,
+        temperature: float | None = None,
     ) -> None:
         self.adapter = adapter
         self.model = model
@@ -74,6 +75,11 @@ class SimulationEngine:
         # calibration harness can sweep them against backtest accuracy.
         self.global_herd_weight = global_herd_weight
         self.momentum_weight = momentum_weight
+        # None leaves every provider call at its API/model default (normal
+        # simulations want that variance — it's what makes personas diverge).
+        # Set low for callers that need near-identical runs to compare
+        # against each other, e.g. argument_sensitivity_report.
+        self.temperature = temperature
 
     def run_streaming(
         self,
@@ -157,6 +163,7 @@ class SimulationEngine:
                         archetype=a.archetype,
                         round_number=round_num,
                         opinion_before=a.current_opinion,
+                        temperature=self.temperature,
                     )
 
                 # Retry malformed structured output before accepting the fallback:
@@ -193,7 +200,9 @@ class SimulationEngine:
                 )
                 viral = store.viral_post(round_num)
                 system = self.adapter.reactor_system_prompt(seed, agent, feed, viral)
-                llm_opinion, cost = self.provider.get_opinion(system, _T2_USER_MSG, self.model)
+                llm_opinion, cost = self.provider.get_opinion(
+                    system, _T2_USER_MSG, self.model, temperature=self.temperature,
+                )
                 total_cost_usd += cost
                 override_fn = agent.metadata.get("resistance_override_fn")
                 agent.current_opinion = blend_opinion(agent, llm_opinion, crowd_signal, override_fn)
@@ -355,4 +364,6 @@ class SimulationEngine:
 
     def _llm_opinion(self, seed: EnrichedSeed, agent: AgentPersona) -> tuple[float, float]:
         system = self.adapter.agent_system_prompt(seed, agent)
-        return self.provider.get_opinion(system, "Output ONLY the number.", self.model)
+        return self.provider.get_opinion(
+            system, "Output ONLY the number.", self.model, temperature=self.temperature,
+        )

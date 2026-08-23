@@ -69,6 +69,57 @@ def test_local_provider_strips_ollama_prefix():
     assert call_kwargs["model"] == "mistral"
 
 
+def test_anthropic_get_opinion_passes_temperature_when_given():
+    from lightningfish_core.llm_provider import AnthropicProvider
+    client = _mock_anthropic_client("0.4")
+    provider = AnthropicProvider(client)
+    provider.get_opinion("sys", "user", "claude-sonnet-5", temperature=0.1)
+    assert client.messages.create.call_args.kwargs["temperature"] == 0.1
+
+
+def test_anthropic_get_opinion_omits_temperature_when_none():
+    from lightningfish_core.llm_provider import AnthropicProvider
+    client = _mock_anthropic_client("0.4")
+    provider = AnthropicProvider(client)
+    provider.get_opinion("sys", "user", "claude-sonnet-5")
+    assert "temperature" not in client.messages.create.call_args.kwargs
+
+
+def test_anthropic_generate_post_and_batch_pass_temperature():
+    from lightningfish_core.llm_provider import AnthropicProvider
+    raw = "STANCE: bullish\nTAG: momentum\nCONFIDENCE: 0.6\nBLURB: b.\n0.3"
+    client = _mock_anthropic_client(raw)
+    provider = AnthropicProvider(client)
+    provider.generate_post(
+        system="s", model="claude-sonnet-5", agent_id="a", archetype="A",
+        round_number=1, opinion_before=0.0, temperature=0.2,
+    )
+    assert client.messages.create.call_args.kwargs["temperature"] == 0.2
+
+    provider.batch_opinions_from_feed(["s1"], "claude-sonnet-5", temperature=0.3)
+    assert client.messages.create.call_args.kwargs["temperature"] == 0.3
+
+
+def test_local_provider_passes_temperature_when_given():
+    from lightningfish_core.llm_provider import LocalProvider
+    with patch("lightningfish_core.llm_provider.openai.OpenAI") as mock_cls:
+        mock_instance = _mock_openai_client("0.1")
+        mock_cls.return_value = mock_instance
+        provider = LocalProvider("http://localhost:11434/v1")
+    provider.get_opinion("sys", "user", "ollama:qwen2.5:7b", temperature=0.1)
+    assert mock_instance.chat.completions.create.call_args.kwargs["temperature"] == 0.1
+
+
+def test_local_provider_omits_temperature_when_none():
+    from lightningfish_core.llm_provider import LocalProvider
+    with patch("lightningfish_core.llm_provider.openai.OpenAI") as mock_cls:
+        mock_instance = _mock_openai_client("0.1")
+        mock_cls.return_value = mock_instance
+        provider = LocalProvider("http://localhost:11434/v1")
+    provider.get_opinion("sys", "user", "ollama:qwen2.5:7b")
+    assert "temperature" not in mock_instance.chat.completions.create.call_args.kwargs
+
+
 def test_make_provider_returns_anthropic_for_claude_model():
     from lightningfish_core.llm_provider import AnthropicProvider, make_provider
     with patch("lightningfish_core.llm_provider.Anthropic"):

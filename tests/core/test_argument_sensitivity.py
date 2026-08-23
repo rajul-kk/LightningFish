@@ -143,7 +143,8 @@ def test_integration_with_real_engine_excludes_the_right_tag_each_call():
     engine = SimulationEngine(_StubAdapter())
     call_tags = []
 
-    def fake_generate_post(system, model, agent_id, archetype, round_number, opinion_before):
+    def fake_generate_post(system, model, agent_id, archetype, round_number, opinion_before,
+                            temperature=None):
         post = SocialPost(
             agent_id=agent_id, archetype=archetype, round_number=round_number,
             stance="yes", argument_tag="alpha", confidence=0.7, blurb="b",
