@@ -71,7 +71,7 @@ async function Shell({ children }: { children: React.ReactNode }) {
 
         <header className="border-b border-ink-700/80 px-6 py-4 flex items-center justify-between backdrop-blur-sm sticky top-0 z-10 bg-ink-950/80">
           <Link href="/" className="flex items-center gap-2 group">
-            <BoltIcon className="w-3.5 h-3.5 text-glow animate-bolt-flicker" />
+            <BoltIcon className="w-3.5 h-3.5 text-glow drop-shadow-glow animate-bolt-flicker [will-change:opacity]" />
             <span className="font-display text-base tracking-tight text-fg">
               Lightningfish
             </span>

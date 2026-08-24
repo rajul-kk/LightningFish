@@ -23,10 +23,13 @@ export function CostMeter({ cost, rounds, totalRounds }: Props) {
             ${cost.toFixed(4)}
           </span>
         </div>
-        <div className="h-1 rounded-full bg-ink-800">
+        <div className="h-1 rounded-full bg-ink-800 overflow-hidden">
+          {/* Full-width bar scaled via transform, not an animated width: width
+              changes force a layout reflow every frame, transform-scale runs
+              on the compositor. */}
           <div
-            className="h-1 rounded-full bg-glow shadow-[0_0_6px_rgba(63,235,184,0.6)] transition-all duration-500"
-            style={{ width: `${pct}%` }}
+            className="h-1 w-full rounded-full bg-glow shadow-[0_0_6px_rgba(63,235,184,0.6)] origin-left transition-transform duration-500"
+            style={{ transform: `scaleX(${pct / 100})` }}
           />
         </div>
       </div>

@@ -127,7 +127,7 @@ export default function LivePage() {
             {latest.cascade_detected && (
               <div className="text-right">
                 <span className="pill-spark inline-flex items-center gap-1">
-                  <BoltIcon className="w-3 h-3 animate-bolt-flicker" />
+                  <BoltIcon className="w-3 h-3 drop-shadow-glow animate-bolt-flicker [will-change:opacity]" />
                   Cascade
                 </span>
                 {latest.cascade_trigger_archetype && (

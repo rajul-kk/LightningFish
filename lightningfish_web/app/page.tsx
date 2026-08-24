@@ -37,7 +37,7 @@ export default function HomePage() {
               <span className="eyebrow text-fg-faint group-hover:text-glow transition-colors">
                 {domain.id}
               </span>
-              <span className="text-fg-faint group-hover:text-glow group-hover:translate-x-0.5 transition-all text-lg">
+              <span className="text-fg-faint group-hover:text-glow group-hover:translate-x-0.5 transition-[color,transform] text-lg">
                 &rarr;
               </span>
             </div>

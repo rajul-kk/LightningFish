@@ -113,7 +113,10 @@ input[type="checkbox"] {
     @apply bg-ink-900 border border-ink-700 rounded-2xl shadow-panel;
   }
   .surface-interactive {
-    @apply surface transition-all duration-200 hover:border-glow/40 hover:shadow-glow;
+    /* border-color + box-shadow only, not transition-all: the browser only
+       needs to watch the two properties actually changing on hover, not
+       every animatable property on the element. */
+    @apply surface transition-[border-color,box-shadow] duration-200 hover:border-glow/40 hover:shadow-glow;
   }
 
   /* Small caps section label used above every panel heading */
@@ -124,7 +127,7 @@ input[type="checkbox"] {
   /* Buttons */
   .btn-primary {
     @apply bg-glow text-ink-950 font-medium rounded-xl px-4 py-3
-           transition-all duration-200 hover:bg-glow-bright hover:shadow-glow
+           transition-[background-color,box-shadow,opacity] duration-200 hover:bg-glow-bright hover:shadow-glow
            disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none;
   }
   .btn-ghost {

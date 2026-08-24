@@ -48,6 +48,13 @@ const config: Config = {
         glow: "0 0 0 1px rgba(63,235,184,0.25), 0 0 24px -4px rgba(63,235,184,0.35)",
         panel: "inset 0 1px 0 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.4)",
       },
+      // Static (non-animated) glow for the bolt icon: paired with
+      // animate-bolt-flicker, which only animates opacity now so the
+      // flicker stays on the compositor instead of repainting a filter
+      // every frame.
+      dropShadow: {
+        glow: "0 0 3px rgba(63,235,184,0.7)",
+      },
       backgroundImage: {
         grain:
           "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E\")",
@@ -57,13 +64,17 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        // Opacity-only: the old version also animated `filter` (a
+        // drop-shadow), which forces a repaint every frame instead of
+        // running on the compositor. Opacity alone gives the same flicker
+        // read at a fraction of the cost, running forever in the nav bar.
         "bolt-flicker": {
-          "0%, 100%": { opacity: "1", filter: "drop-shadow(0 0 3px rgba(63,235,184,0.7))" },
-          "45%": { opacity: "1", filter: "drop-shadow(0 0 3px rgba(63,235,184,0.7))" },
-          "48%": { opacity: "0.4", filter: "none" },
-          "50%": { opacity: "1", filter: "drop-shadow(0 0 6px rgba(63,235,184,0.9))" },
-          "52%": { opacity: "0.6", filter: "none" },
-          "55%": { opacity: "1", filter: "drop-shadow(0 0 3px rgba(63,235,184,0.7))" },
+          "0%, 100%": { opacity: "1" },
+          "45%": { opacity: "1" },
+          "48%": { opacity: "0.4" },
+          "50%": { opacity: "1" },
+          "52%": { opacity: "0.6" },
+          "55%": { opacity: "1" },
         },
         "sweep": {
           "0%": { transform: "translateX(-120%) skewX(-15deg)" },
