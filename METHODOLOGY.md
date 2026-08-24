@@ -3,7 +3,7 @@
 **A validation protocol for generative social simulations.**
 
 Multi-agent LLM simulations are usually validated by showing they *reproduce*
-something — an opinion trajectory's shape, an aggregate distribution, a known
+something: an opinion trajectory's shape, an aggregate distribution, a known
 social phenomenon like echo chambers or the friendship paradox. Reproduction is
 necessary but weak evidence: a simulation can match the shape of real dynamics
 while carrying no predictive information about any particular case, and a 2025
@@ -23,14 +23,14 @@ clears.
 | # | Reference | What it controls for | Implementation |
 |---|---|---|---|
 | 0 | **Majority class** | Degenerate data. Always predicting the common outcome. | `BacktestReport.majority_class_accuracy` |
-| 1 | **Naive heuristic** | Metadata signal. A content-free rule over structural fields — no model, no content. | `DomainAdapter.naive_prediction` |
+| 1 | **Naive heuristic** | Metadata signal. A content-free rule over structural fields, no model, no content. | `DomainAdapter.naive_prediction` |
 | 2 | **Single LLM call** | The language model itself. One prompt, one answer, no agents, no rounds. | `backtest.llm_baseline` |
-| 3 | **The simulation** | — | `run_backtest` / `score_precomputed` |
+| 3 | **The simulation** | (this is the thing being tested) | `run_backtest` / `score_precomputed` |
 
 **Rung 2 is the one that matters and the one that is almost never reported.**
 Beating a naive heuristic shows the model knows something. Only beating a single
-LLM call shows the *multi-agent machinery* — the personas, the rounds, the
-herding, the tier routing — is contributing anything at all. A simulation that
+LLM call shows the *multi-agent machinery*, the personas, the rounds, the
+herding, the tier routing, is contributing anything at all. A simulation that
 matches its own single-call baseline is an expensive wrapper around one prompt,
 whatever its trajectories look like.
 
@@ -51,7 +51,7 @@ binomtest(sim_correct, n, p=best_reference_accuracy, alternative="greater")
 ```
 
 Reported as `p_value_vs_best`. A simulation at 75% against a 70% best reference
-on n=36 is not a result — it is four coin flips of separation. The null is
+on n=36 is not a result. It is four coin flips of separation. The null is
 deliberately harsh: beating chance is uninteresting when a two-line heuristic
 already beats chance.
 
@@ -65,7 +65,7 @@ accidentally, in this repo, and then finding the bug.
 ### 1. Point-in-time safety
 
 No field derived from the outcome may enter the seed. This is an architectural
-guarantee, not a review convention — the seed enricher is a separate module from
+guarantee, not a review convention: the seed enricher is a separate module from
 the ground-truth fetcher, and tests assert the target values never appear in the
 seed text or metadata.
 
@@ -112,20 +112,20 @@ happens to be biased toward the more common side.
 A wrapper that reimplements an interface method-by-method (rather than
 forwarding automatically) silently falls back to the base class's default for
 any hook added after the wrapper was written. That default can look like a
-real, if mediocre, result — nothing raises, nothing crashes, the report just
+real, if mediocre, result: nothing raises, nothing crashes, the report just
 scores the wrong thing.
 
 *Found the hard way:* `CachingAdapter` was written against `DomainAdapter`
 before `sim_direction` existed. Adding it for the controversy experiment
 without also updating `CachingAdapter` meant every controversy backtest run
 through the CLI (which always wraps in `CachingAdapter`) silently scored
-`sign(trajectory[-1])` — the mean, not the crowd's dispersion — for the whole
+`sign(trajectory[-1])`, the mean, not the crowd's dispersion, for the whole
 n=107 run. The accuracy it reported (53.3%) was a real number, just not an
 answer to the question being asked.
 
 *Applied:* `CachingAdapter.sim_direction` now delegates, and a structural test
 enumerates every `DomainAdapter` method and fails if `CachingAdapter` doesn't
-override it — so the next hook added to the interface can't reintroduce this
+override it, so the next hook added to the interface can't reintroduce this
 silently.
 
 ### 7. Ground truth is measured once and reused
@@ -136,7 +136,7 @@ every later run read that stored value.
 
 *Found the hard way:* HN points accrue indefinitely and the API serves only
 current totals, so a second run re-measured and disagreed with the first on
-6 of 22 events — one flipping class outright when a 4-point story reached 108
+6 of 22 events, one flipping class outright when a 4-point story reached 108
 four days later. Two runs claimed to be paired were not. Records now carry
 `measured_at_i` / `age_at_measurement_s`, and `copy_ground_truth_from` imports
 the original measurements rather than re-fetching.
@@ -161,7 +161,7 @@ are distinguishable:
    data, not the engine.
 4. **No signal in the seed.** What remains after the first three. Confirm it
    with a **ceiling check**: measure how much accuracy every available seed
-   field can produce on its own before concluding the simulation is at fault —
+   field can produce on its own before concluding the simulation is at fault,
    and before spending effort enriching.
 
 The ceiling check is the same discipline applied one level down. Before
@@ -176,29 +176,29 @@ are negative, and were reported as negative:
 
 | Domain | Majority | Naive | Sim | Verdict |
 |---|---|---|---|---|
-| Coding (PR merge) | — | ties/beats sim | at or below naive | **fails** — seed lacks the signal |
-| HN points, submission-only | 50% | 69% | 47% | **fails** — worse than chance |
+| Coding (PR merge) | - | ties/beats sim | at or below naive | **fails**: seed lacks the signal |
+| HN points, submission-only | 50% | 69% | 47% | **fails**: worse than chance |
 | HN comments, submission-only | 57% | 71% | 39% | **fails** |
-| HN points, +2h early comments | 50% | 69% karma / **86% early-count** | — | baseline jumped, see below |
-| HN points, blind subgroup (n=22) | 73% | 55% karma / 73% early-count | **32%** (single_llm 27%) | **fails** — loses to a constant guess by 41 pts |
-| HN points, scaled (n=200) | 50% | 62.5% karma | 51.5% (single_llm 50%) | **fails** — chance, properly powered |
-| HN controversy (n=107) | 55% | 47.7% / 55.1% | 53.3%, but see rule 6 | **invalid run** — wrong axis scored, then a miscalibrated threshold |
-| HN controversy, calibrated (n=74) | 53% | 51% karma / 53% single_llm | **38%** | **fails** — below chance, both issues fixed, valid result |
-| HN controversy, bounded confidence OFF (n=42) | 62% | 38% naive / 62% single_llm | **48%** | **fails** — below both baselines |
-| HN controversy, bounded confidence ON (n=42) | 62% | 38% naive / 62% single_llm | **52%** | **fails** — below both baselines |
-| HN controversy, bc off / network off (n=53) | 58% | 42% naive / 58% single_llm | **51%** | **fails** — below both baselines |
-| HN controversy, bc on / network off (n=53) | 58% | 42% naive / 58% single_llm | **55%** | **fails** — below both baselines |
-| HN controversy, bc on / network on (n=53) | 58% | 42% naive / 58% single_llm | **47%** | **fails** — below both baselines |
+| HN points, +2h early comments | 50% | 69% karma / **86% early-count** | - | baseline jumped, see below |
+| HN points, blind subgroup (n=22) | 73% | 55% karma / 73% early-count | **32%** (single_llm 27%) | **fails**: loses to a constant guess by 41 pts |
+| HN points, scaled (n=200) | 50% | 62.5% karma | 51.5% (single_llm 50%) | **fails**: chance, properly powered |
+| HN controversy (n=107) | 55% | 47.7% / 55.1% | 53.3%, but see rule 6 | **invalid run**: wrong axis scored, then a miscalibrated threshold |
+| HN controversy, calibrated (n=74) | 53% | 51% karma / 53% single_llm | **38%** | **fails**: below chance, both issues fixed, valid result |
+| HN controversy, bounded confidence OFF (n=42) | 62% | 38% naive / 62% single_llm | **48%** | **fails**: below both baselines |
+| HN controversy, bounded confidence ON (n=42) | 62% | 38% naive / 62% single_llm | **52%** | **fails**: below both baselines |
+| HN controversy, bc off / network off (n=53) | 58% | 42% naive / 58% single_llm | **51%** | **fails**: below both baselines |
+| HN controversy, bc on / network off (n=53) | 58% | 42% naive / 58% single_llm | **55%** | **fails**: below both baselines |
+| HN controversy, bc on / network on (n=53) | 58% | 42% naive / 58% single_llm | **47%** | **fails**: below both baselines |
 
 The bounded-confidence pair is an A/B, not two independent findings: same event
-pull, same calibration/evaluation split, same threshold-derivation logic — the
+pull, same calibration/evaluation split, same threshold-derivation logic. The
 only difference is whether T3's herding update gates on a Hegselmann-Krause
 confidence bound (see engine.py) or never gates. The hypothesis was that this
 produces more realistic multi-modal splits than the jitter-dependent
 fragmentation the engine relied on before. It doesn't move the needle: both
 p-values are nowhere near significant (0.979 off, 0.922 on), and the two
 calibrated thresholds (0.205 vs 0.209) are nearly identical. Diffing the two
-reports event-by-event shows why the 4-point gap isn't signal — 20 of the 42
+reports event-by-event shows why the 4-point gap isn't signal: 20 of the 42
 events flipped their predicted direction between arms (11 wrong→correct,
 9 correct→wrong), a coin-flip's worth of churn netting out to +2 events. The
 mechanism is real and tested (see the engine's own unit tests), but on this
@@ -206,22 +206,22 @@ axis it doesn't do anything a properly-powered rerun should read as more than
 noise.
 
 The three-way n=53 set is a separate, larger pull with all three flag
-combinations run against the same events — a second independent sample that
+combinations run against the same events, a second independent sample that
 happens to also test co-evolving follower rewiring (`rewire_follower_graph`,
 see engine.py). It confirms the same pattern rather than adding a new one: bc
 on/off on this pull moves 51%→55% (+4 points, same size and direction as the
 n=42 result, still not significant, p=0.895 vs p=0.758), and layering the
 network mechanism on top of bc-on moves 55%→47%, the lowest of the three. That
 looks like network rewiring actively hurts, but diffing it against its actual
-control (bc on/network off) shows 28 of 53 events flipped direction — 12
-helped, 16 hurt — the same coin-flip-scale churn as everything else on this
+control (bc on/network off) shows 28 of 53 events flipped direction, 12
+helped and 16 hurt, the same coin-flip-scale churn as everything else on this
 axis, just landing slightly net-negative this time instead of net-positive.
 Neither mechanism has moved this axis in either pull; both remain **fails**,
-and the honest read is that the churn itself — not the sign of any one
-run — is the finding.
+and the honest read is that the churn itself, not the sign of any one
+run, is the finding.
 
 The last row is where the protocol earns its keep. Enriching the seed with early
-comments raised the *baseline* from 69% to 86% — so a simulation scored only
+comments raised the *baseline* from 69% to 86%, so a simulation scored only
 against the old baseline would have looked dramatically improved while actually
 being outperformed by a one-line comment count. Rule 2 is what catches that.
 
@@ -234,7 +234,7 @@ can demonstrate anything.
 The ceiling check on the HN submission-only seeds found that author karma alone
 scores 69%, no combination of the remaining static fields beats it, and several
 richer combinations score *worse*. That result is what justified spending effort
-on early comments rather than on more static-content parsing — and it is the
+on early comments rather than on more static-content parsing, and it is the
 kind of decision the protocol exists to inform.
 
 ---
@@ -244,7 +244,7 @@ kind of decision the protocol exists to inform.
 Everything above scores a prediction against a real settled outcome. Not
 every useful question fits that shape. Counterfactual replay
 (`excluded_argument_tags` in engine.py) asks "what would this debate have
-looked like if one specific argument had never been raised" — and there is no
+looked like if one specific argument had never been raised," and there is no
 real-world measurement of the HN thread that didn't happen, so nothing here
 can be checked against ground truth. `argument_sensitivity_report()`
 (`lightningfish_core/argument_sensitivity.py`) answers it a different way
@@ -256,13 +256,13 @@ The first real run of this (n=4 HN events, 24 agents, 4 rounds,
 `qwen2.5:7b`) surfaced a genuine problem before it produced a genuine result:
 tags that were never even posted in the baseline still showed nonzero deltas
 when "excluded," because the LLM itself samples stochastically and two runs
-of identical prompts don't reproduce identical trajectories — the noise floor
+of identical prompts don't reproduce identical trajectories. The noise floor
 was larger than any real argument-exclusion effect. `SimulationEngine` gained
-a `temperature` parameter to address this (None by default everywhere else —
-sampling variance is what makes personas diverge, so this should not be
+a `temperature` parameter to address this (None by default everywhere else,
+since sampling variance is what makes personas diverge, so this should not be
 touched for a normal run); `run_argument_sensitivity.py` sets it to 0.1.
 Re-run at that temperature, the never-posted-tag deltas dropped to roughly
-±0.001–0.006 (from up to ±0.046 before), confirmed against real inference
+±0.001-0.006 (from up to ±0.046 before), confirmed against real inference
 rather than assumed.
 
 That floor is small but not exactly zero at full population size, so each
@@ -270,17 +270,17 @@ event's own never-posted tags are the right yardstick for whether an
 actually-posted tag's delta means anything, not a fixed threshold. Applying
 that to the n=4 run: two events showed a real, distinguishable effect
 (`novelty` on one story, delta -0.058 against a ~0.001-0.003 floor;
-`relevance` on another, delta -0.029 against a ~0.000-0.004 floor — both
+`relevance` on another, delta -0.029 against a ~0.000-0.004 floor, both
 roughly an order of magnitude past their own noise), and two did not
 (deltas of +0.007 against floors of ~0.000-0.004 and ~0.005-0.006
-respectively — too close to call). None of the four flipped the predicted
+respectively, too close to call). None of the four flipped the predicted
 direction; the effect changed how strongly the simulation leaned viral, not
 the call itself, at this sample size. `novelty` was the tag actually posted
 in three of the four debates, and its measured effect ranged from -0.058 to
-+0.007 depending on the story — evidence it's tracking something
++0.007 depending on the story, evidence it's tracking something
 content-specific, not just a fixed per-tag bonus baked into the prompt.
 
-This is a working diagnostic, not a validated finding — n=4 is a
+This is a working diagnostic, not a validated finding. n=4 is a
 demonstration that the tool now measures something real, not a claim about
 which arguments matter on Hacker News in general.
 
@@ -291,7 +291,7 @@ which arguments matter on Hacker News in general.
 The protocol is not specific to this engine. To run it against any generative
 social simulation:
 
-1. Pick a domain with **objective, dated, settled outcomes** — not human ratings.
+1. Pick a domain with **objective, dated, settled outcomes**, not human ratings.
 2. Build a seed enricher that provably cannot see the outcome, and test that.
 3. Write the content-free heuristic first. It is the honest floor and it is
    frequently much stronger than expected.
@@ -301,8 +301,8 @@ social simulation:
    scoring.
 6. Report all four rungs and the p-value. Report negatives.
 
-The harness in `lightningfish_core/backtest.py` is domain-agnostic — it needs
-only a `DomainAdapter` — and is reusable as-is.
+The harness in `lightningfish_core/backtest.py` is domain-agnostic. It needs
+only a `DomainAdapter`, and is reusable as-is.
 
 ---
 
@@ -310,12 +310,12 @@ only a `DomainAdapter` — and is reusable as-is.
 
 This is a protocol writeup, not a peer-reviewed contribution, and no formal
 comparative evaluation was run against the systems it contrasts with. The
-event counts here (n≈30–40 per domain) are small enough that individual
+event counts here (n≈30-40 per domain) are small enough that individual
 accuracy figures carry wide confidence intervals; they are adequate to
 demonstrate the protocol and to support negative conclusions, and not adequate
-to support a positive claim of general predictive skill. The rung-2 argument —
+to support a positive claim of general predictive skill. The rung-2 argument,
 that a multi-agent simulation must beat its own single-call baseline to justify
-itself — is the part expected to hold up independently of anything specific to
+itself, is the part expected to hold up independently of anything specific to
 this codebase.
 
 The harness itself lives in [`lightningfish_core/backtest.py`](lightningfish_core/backtest.py);

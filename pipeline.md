@@ -1,9 +1,9 @@
-# Lightningfish — Architecture Pipeline
+# Lightningfish: Architecture Pipeline
 
 > **Snapshot from Plan 1** (finance + coding domains only, predates the HN
 > domain and later engine fixes). Kept here as a pipeline diagram of the
 > Modal/Next.js deployment shape, not a source of truth for current
-> domain/engine mechanics — see [METHODOLOGY.md](METHODOLOGY.md) for that.
+> domain/engine mechanics: see [METHODOLOGY.md](METHODOLOGY.md) for that.
 
 ---
 
@@ -12,40 +12,40 @@
 ```
 lightningfish/
 │
-├── lightningfish_core/          # Domain-agnostic engine — zero external knowledge
+├── lightningfish_core/          # Domain-agnostic engine: zero external knowledge
 │   ├── models.py                # Shared dataclasses (EnrichedSeed, AgentPersona, RoundEvent, …)
-│   ├── adapter.py               # DomainAdapter ABC — the plugin contract
-│   ├── enricher.py              # EnricherPlugin ABC — composable data fetchers
-│   ├── registry.py              # DomainRegistry — auto-discovers plugins via entry points
-│   ├── engine.py                # SimulationEngine — orchestrates rounds, calls LLM, updates followers
-│   ├── tier_router.py           # TierRouter — splits agents into active (LLM) / follower (formula)
-│   ├── resistance.py            # compute_effective_resistance() — Kahneman-Tversky anchoring math
-│   ├── rule_agent.py            # RuleBasedAgent — deterministic agent base (always tier-2)
-│   └── backtest_base.py         # BacktestHarness ABC — calibration loop skeleton
+│   ├── adapter.py               # DomainAdapter ABC: the plugin contract
+│   ├── enricher.py              # EnricherPlugin ABC: composable data fetchers
+│   ├── registry.py              # DomainRegistry: auto-discovers plugins via entry points
+│   ├── engine.py                # SimulationEngine: orchestrates rounds, calls LLM, updates followers
+│   ├── tier_router.py           # TierRouter: splits agents into active (LLM) / follower (formula)
+│   ├── resistance.py            # compute_effective_resistance(): Kahneman-Tversky anchoring math
+│   ├── rule_agent.py            # RuleBasedAgent: deterministic agent base (always tier-2)
+│   └── backtest_base.py         # BacktestHarness ABC: calibration loop skeleton
 │
 ├── lightningfish_finance/       # Finance domain plugin
 │   ├── __init__.py              # Registers FinanceDomainAdapter on import
-│   ├── config.py                # FinanceDomainAdapter — wires together all finance modules
+│   ├── config.py                # FinanceDomainAdapter: wires together all finance modules
 │   ├── personas.py              # 7 investor archetypes + short_seller_resistance override
 │   ├── seed_enricher.py         # yfinance + event-type classifier → EnrichedSeed
 │   ├── ground_truth.py          # Reddit (praw) sentiment + yfinance price series
-│   └── run_backtest.py          # FinanceBacktestHarness — SEC EDGAR 8-K batch runner
+│   └── run_backtest.py          # FinanceBacktestHarness: SEC EDGAR 8-K batch runner
 │
 ├── lightningfish_coding/        # Code review domain plugin
 │   ├── __init__.py              # Registers CodingDomainAdapter on import
-│   ├── config.py                # CodingDomainAdapter — wires together all coding modules
+│   ├── config.py                # CodingDomainAdapter: wires together all coding modules
 │   ├── personas.py              # 6 reviewer archetypes + CIBot (RuleBasedAgent subclass)
 │   ├── seed_enricher.py         # GitHub REST API → EnrichedSeed (diff size, languages, CI)
 │   ├── ground_truth.py          # GitHub check-runs API → CI pass rate + merge outcome
-│   └── run_backtest.py          # CodingBacktestHarness — public-repo PR batch runner
+│   └── run_backtest.py          # CodingBacktestHarness: public-repo PR batch runner
 │
 ├── lightningfish_service/       # FastAPI HTTP service (runs on Modal)
-│   ├── main.py                  # App factory — imports plugins, mounts routers, sets CORS
+│   ├── main.py                  # App factory: imports plugins, mounts routers, sets CORS
 │   ├── modal_app.py             # Modal deployment wrapper (scale-to-zero, 10 min timeout)
 │   ├── db.py                    # Postgres helpers via psycopg2 (Neon)
-│   ├── serializers.py           # Dataclass ↔ dict — excludes non-serialisable callables
-│   ├── migrate.py               # Schema v1 — simulations, round_events, api_keys tables
-│   ├── migrate_v2.py            # Schema v2 — adds model + agent_config_json columns
+│   ├── serializers.py           # Dataclass ↔ dict: excludes non-serialisable callables
+│   ├── migrate.py               # Schema v1: simulations, round_events, api_keys tables
+│   ├── migrate_v2.py            # Schema v2: adds model + agent_config_json columns
 │   └── routes/
 │       ├── enrich.py            # POST /enrich
 │       ├── simulate.py          # GET /simulate (list) · POST /simulate · GET /simulate/{id}
@@ -55,9 +55,9 @@ lightningfish/
 │       └── keys.py              # GET/POST/DELETE /keys
 │
 ├── lightningfish_web/           # Next.js 15 App Router (deploys to Vercel)
-│   ├── middleware.ts            # Clerk auth — protects all routes except /
+│   ├── middleware.ts            # Clerk auth: protects all routes except /
 │   ├── app/
-│   │   ├── page.tsx             # Landing — domain selector cards
+│   │   ├── page.tsx             # Landing: domain selector cards
 │   │   ├── simulate/
 │   │   │   ├── [domain]/page    # Seed form + model picker + agent mix
 │   │   │   └── [id]/live/page  # SSE live viewer → auto-redirects to report
@@ -65,7 +65,7 @@ lightningfish/
 │   │   ├── history/page         # Simulation history table
 │   │   └── dev/keys/page        # API key management
 │   ├── components/
-│   │   ├── OpinionChart         # Recharts line chart — trajectory over rounds
+│   │   ├── OpinionChart         # Recharts line chart: trajectory over rounds
 │   │   ├── DistributionBar      # Bearish / neutral / bullish horizontal bar
 │   │   ├── RoundFeed            # Live per-round activity list
 │   │   ├── AgentChat            # Post-simulation persona interview
@@ -73,7 +73,7 @@ lightningfish/
 │   └── lib/
 │       ├── types.ts             # Shared TS types + DOMAINS / MODELS / ARCHETYPES constants
 │       ├── api.ts               # Typed fetch wrappers to the Python service
-│       └── use-sse.ts           # useSimulationStream hook — EventSource → state
+│       └── use-sse.ts           # useSimulationStream hook: EventSource → state
 │
 └── tests/
     ├── core/                    # Engine, models, adapter, registry, resistance, tier_router
@@ -227,7 +227,7 @@ Population (n agents)
   │
   TierRouter.route()
   │
-  ├── Tier 1 — Active  (≤ 10% hard cap, influence_weight > 0.65)
+  ├── Tier 1: Active  (≤ 10% hard cap, influence_weight > 0.65)
   │     │
   │     │  Each calls LLM with persona-specific system prompt
   │     │  Output: float opinion [-1.0, 1.0]
@@ -236,7 +236,7 @@ Population (n agents)
   │     ├── ShortSeller          resistance=0.90  contrarian=0.95  ← inverse resistance rule
   │     └── InstitutionalAnalyst resistance=0.60  influence=0.90
   │
-  └── Tier 2 — Followers  (remaining ~90%)
+  └── Tier 2: Followers  (remaining ~90%)
         │
         ├── RuleBasedAgents  (always tier-2, no LLM)
         │     └── CIBot: opinion = (ci_pass_rate × 2.0) − 1.0
@@ -275,16 +275,16 @@ EnrichedSeed
 AgentPersona
   ├── unique_id
   ├── archetype        "ValueInvestor" | "CIBot" | …
-  ├── opinion_resistance   float [0,1]  — anchoring strength
-  ├── recency_bias         float [0,1]  — weight on latest signal
-  ├── contrarian_tendency  float [0,1]  — push against consensus
-  ├── influence_weight     float [0,1]  — tier-1 eligibility threshold
-  ├── current_opinion      float [-1,1] — mutated each round
-  └── metadata             dict         — callables (resistance_override_fn), extras
+  ├── opinion_resistance   float [0,1] : anchoring strength
+  ├── recency_bias         float [0,1] : weight on latest signal
+  ├── contrarian_tendency  float [0,1] : push against consensus
+  ├── influence_weight     float [0,1] : tier-1 eligibility threshold
+  ├── current_opinion      float [-1,1]: mutated each round
+  └── metadata             dict        : callables (resistance_override_fn), extras
 
 RoundEvent
   ├── round_number
-  ├── opinion_distribution   list[float]  — all n agent opinions
+  ├── opinion_distribution   list[float] : all n agent opinions
   ├── mean_opinion
   ├── stddev_opinion
   ├── tier1_calls
@@ -293,7 +293,7 @@ RoundEvent
 
 SimulationResult
   ├── seed               EnrichedSeed
-  ├── trajectory         list[float]  — mean opinion per round
+  ├── trajectory         list[float] : mean opinion per round
   ├── round_events       list[RoundEvent]
   ├── final_distribution list[float]
   ├── total_tier1_calls
@@ -389,5 +389,5 @@ Modal  (FastAPI, scale-to-zero, 10 min timeout)
     └── GET/POST/DELETE /keys
     │
     ├── Neon Postgres   (simulations, round_events, api_keys)
-    └── Anthropic API   (claude-haiku / sonnet / opus — tier-1 LLM calls)
+    └── Anthropic API   (claude-haiku / sonnet / opus: tier-1 LLM calls)
 ```

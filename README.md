@@ -1,8 +1,8 @@
 # Lightningfish
 
-Lightningfish simulates how a population of differently-minded people would argue about something — a stock ticker, a GitHub PR, a Hacker News link — using calibrated AI personas that read, react, and try to persuade each other round by round.
+Lightningfish simulates how a population of differently-minded people would argue about something (a stock ticker, a GitHub PR, a Hacker News link) using calibrated AI personas that read, react, and try to persuade each other round by round.
 
-**This is a deliberation simulator, not a forecaster.** Every domain has been backtested against real settled outcomes wherever that's possible, and the results are reported honestly — including every place the simulation loses to a naive heuristic. See [METHODOLOGY.md](METHODOLOGY.md) for the validation protocol and a results summary per domain. What the engine is actually good for: watching a structured, multi-perspective argument unfold — where a skeptic pushes back, how fast consensus forms (or doesn't), and what the strongest case on each side sounds like.
+**This is a deliberation simulator, not a forecaster.** Every domain has been backtested against real settled outcomes wherever that's possible, and the results are reported honestly, including every place the simulation loses to a naive heuristic. See [METHODOLOGY.md](METHODOLOGY.md) for the validation protocol and a results summary per domain. What the engine is actually good for: watching a structured, multi-perspective argument unfold, where a skeptic pushes back, how fast consensus forms (or doesn't), and what the strongest case on each side sounds like.
 
 Built from scratch, inspired by [OASIS](https://github.com/camel-ai/oasis) and MiroFish.
 
@@ -34,7 +34,7 @@ pip install fastapi uvicorn anthropic psycopg2-binary praw yfinance \
             sec-edgar-downloader requests scipy
 ```
 
-**Set environment variables** — copy `.env.example` to `.env` and fill in values:
+**Set environment variables**: copy `.env.example` to `.env` and fill in values:
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
@@ -79,7 +79,7 @@ cd lightningfish_web
 npm install
 ```
 
-**Set environment variables** — copy `.env.local.example` to `.env.local`:
+**Set environment variables**: copy `.env.local.example` to `.env.local`:
 
 ```
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
@@ -91,9 +91,9 @@ PYTHON_SERVICE_URL=http://localhost:8000
 NEXT_PUBLIC_PYTHON_SERVICE_URL=http://localhost:8000
 ```
 
-Clerk keys come from [clerk.com](https://clerk.com) — free tier is fine.
+Clerk keys come from [clerk.com](https://clerk.com); free tier is fine.
 
-> **Skip Clerk for quick testing** — comment out the body of `middleware.ts` and set `user_id: "dev"` in the simulate form. The Python service accepts any user_id string.
+> **Skip Clerk for quick testing**: comment out the body of `middleware.ts` and set `user_id: "dev"` in the simulate form. The Python service accepts any user_id string.
 
 **Start the frontend**
 
@@ -151,14 +151,14 @@ majority-class reference, with a binomial significance test. See
 single-LLM-call rung is the one that matters.
 
 ```bash
-# Coding — class-balanced closed PRs from a public repo (tokenless works; a
+# Coding: class-balanced closed PRs from a public repo (tokenless works; a
 # GITHUB_TOKEN raises the rate limit from 60 to 5000 req/hr)
 python -m tests.integration.run_backtest coding pallets flask 20
 
-# Finance — (ticker, date, headline) events scored against the price move
+# Finance: (ticker, date, headline) events scored against the price move
 python -m tests.integration.run_backtest finance
 
-# Hacker News — class-balanced settled stories, scored on both points and
+# Hacker News: class-balanced settled stories, scored on both points and
 # num_comments (tokenless works; free 10,000 req/hr, no GITHUB_TOKEN needed)
 python -m tests.integration.run_backtest hn 20
 
@@ -170,23 +170,23 @@ python -m tests.integration.run_backtest hn-early
 python -m tests.integration.run_calibration pallets flask 20
 ```
 
-**No GPU?** Two Kaggle notebooks run these on a free T4 — the model sits in VRAM
+**No GPU?** Two Kaggle notebooks run these on a free T4: the model sits in VRAM
 instead of thrashing a CPU box, turning hours into minutes. Upload via Kaggle →
 Create → Notebook → File → Import Notebook.
 
 | Notebook | Runs |
 |---|---|
 | [`kaggle_backtest.ipynb`](kaggle_backtest.ipynb) | the reception backtests (submission-only → paired early-comments → blind subgroup), plus a large-n scaling section |
-| [`kaggle_controversy.ipynb`](kaggle_controversy.ipynb) | the controversy axis — scores whether the simulated crowd *splits*, the one output a single model call doesn't produce |
+| [`kaggle_controversy.ipynb`](kaggle_controversy.ipynb) | the controversy axis: scores whether the simulated crowd *splits*, the one output a single model call doesn't produce |
 
 Cheap local runs: prefix with `LIGHTNINGFISH_MODEL=ollama:qwen2.5:7b` (llama3.2
-3B is too weak — drops the structured format) and shrink the sim with
+3B is too weak, it drops the structured format) and shrink the sim with
 `LIGHTNINGFISH_N_AGENTS` / `LIGHTNINGFISH_N_ROUNDS`. Watch the `low_confidence`
-flag — a run dominated by parse failures isn't trustworthy regardless of model.
+flag: a run dominated by parse failures isn't trustworthy regardless of model.
 
 Ground truth (and, for coding, the pulled PR list) is cached to
 `.cache/lightningfish/` so repeated runs against the same events don't re-spend
-API rate limit — set `LIGHTNINGFISH_NO_CACHE=1` to force a fresh pull. Once a
+API rate limit; set `LIGHTNINGFISH_NO_CACHE=1` to force a fresh pull. Once a
 repo is cached, two offline diagnostics need no further network calls:
 
 ```bash
@@ -231,7 +231,7 @@ python -m pytest -q          # 202 tests, ~20s
 | StyleMaintainability | 20% | Readability and consistency focused |
 | SecurityReviewer | 10% | Blocks on security issues, high conviction |
 | PerformanceReviewer | 10% | Runtime and memory impact |
-| CIBot | 12% | Deterministic — CI pass rate only, no LLM |
+| CIBot | 12% | Deterministic, CI pass rate only, no LLM |
 | DomainExpertMaintainer | 8% | Highest influence, domain ownership |
 
 All proportions are configurable in the simulation form.
@@ -254,7 +254,7 @@ All proportions are configurable in the simulation form.
 | Model | Input | Output | Use when |
 |---|---|---|---|
 | Haiku 4.5 | $1/M | $5/M | Fast iteration, cost control |
-| Sonnet 5 | $3/M | $15/M | Default — balanced |
+| Sonnet 5 | $3/M | $15/M | Default, balanced |
 | Opus 5 | $5/M | $25/M | Highest reasoning quality |
 | Ollama (local) | $0 | $0 | Free local testing via `ollama:<model>` |
 
@@ -262,6 +262,6 @@ Typical cost per simulation (300 agents, 10 rounds, Sonnet): ~$0.05.
 
 Select a model with `LIGHTNINGFISH_MODEL` (CLIs) or the `model` argument
 (`SimulationEngine`). `ollama:llama3.2` routes to a local Ollama server at no
-cost — good for plumbing checks, but small models drop the structured output
+cost, good for plumbing checks, but small models drop the structured output
 format often and produce muted signals (see the `parse_success_rate` /
 `low_confidence` fields).
