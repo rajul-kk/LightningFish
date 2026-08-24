@@ -239,6 +239,53 @@ kind of decision the protocol exists to inform.
 
 ---
 
+## A different kind of question: argument sensitivity
+
+Everything above scores a prediction against a real settled outcome. Not
+every useful question fits that shape. Counterfactual replay
+(`excluded_argument_tags` in engine.py) asks "what would this debate have
+looked like if one specific argument had never been raised" — and there is no
+real-world measurement of the HN thread that didn't happen, so nothing here
+can be checked against ground truth. `argument_sensitivity_report()`
+(`lightningfish_core/argument_sensitivity.py`) answers it a different way
+instead: run the simulation once normally, then once per taxonomy tag with
+that tag excluded, and compare each excluded run against the simulation's own
+baseline rather than against reality.
+
+The first real run of this (n=4 HN events, 24 agents, 4 rounds,
+`qwen2.5:7b`) surfaced a genuine problem before it produced a genuine result:
+tags that were never even posted in the baseline still showed nonzero deltas
+when "excluded," because the LLM itself samples stochastically and two runs
+of identical prompts don't reproduce identical trajectories — the noise floor
+was larger than any real argument-exclusion effect. `SimulationEngine` gained
+a `temperature` parameter to address this (None by default everywhere else —
+sampling variance is what makes personas diverge, so this should not be
+touched for a normal run); `run_argument_sensitivity.py` sets it to 0.1.
+Re-run at that temperature, the never-posted-tag deltas dropped to roughly
+±0.001–0.006 (from up to ±0.046 before), confirmed against real inference
+rather than assumed.
+
+That floor is small but not exactly zero at full population size, so each
+event's own never-posted tags are the right yardstick for whether an
+actually-posted tag's delta means anything, not a fixed threshold. Applying
+that to the n=4 run: two events showed a real, distinguishable effect
+(`novelty` on one story, delta -0.058 against a ~0.001-0.003 floor;
+`relevance` on another, delta -0.029 against a ~0.000-0.004 floor — both
+roughly an order of magnitude past their own noise), and two did not
+(deltas of +0.007 against floors of ~0.000-0.004 and ~0.005-0.006
+respectively — too close to call). None of the four flipped the predicted
+direction; the effect changed how strongly the simulation leaned viral, not
+the call itself, at this sample size. `novelty` was the tag actually posted
+in three of the four debates, and its measured effect ranged from -0.058 to
++0.007 depending on the story — evidence it's tracking something
+content-specific, not just a fixed per-tag bonus baked into the prompt.
+
+This is a working diagnostic, not a validated finding — n=4 is a
+demonstration that the tool now measures something real, not a claim about
+which arguments matter on Hacker News in general.
+
+---
+
 ## Applying this to another simulator
 
 The protocol is not specific to this engine. To run it against any generative
