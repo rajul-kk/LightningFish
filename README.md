@@ -170,14 +170,16 @@ python -m tests.integration.run_backtest hn-early
 python -m tests.integration.run_calibration pallets flask 20
 ```
 
-**No GPU?** Two Kaggle notebooks run these on a free T4: the model sits in VRAM
-instead of thrashing a CPU box, turning hours into minutes. Upload via Kaggle →
-Create → Notebook → File → Import Notebook.
+**No GPU?** The [`notebooks/`](notebooks/) directory has Kaggle notebooks that run these on a
+free T4: the model sits in VRAM instead of thrashing a CPU box, turning hours into
+minutes. Upload via Kaggle → Create → Notebook → File → Import Notebook.
 
 | Notebook | Runs |
 |---|---|
-| [`kaggle_backtest.ipynb`](kaggle_backtest.ipynb) | the reception backtests (submission-only → paired early-comments → blind subgroup), plus a large-n scaling section |
-| [`kaggle_controversy.ipynb`](kaggle_controversy.ipynb) | the controversy axis: scores whether the simulated crowd *splits*, the one output a single model call doesn't produce |
+| [`kaggle_backtest.ipynb`](notebooks/kaggle_backtest.ipynb) | the reception backtests (submission-only → paired early-comments → blind subgroup), plus a large-n scaling section |
+| [`kaggle_controversy.ipynb`](notebooks/kaggle_controversy.ipynb) | the controversy axis: scores whether the simulated crowd *splits*, the one output a single model call doesn't produce |
+| [`kaggle_bounded_confidence.ipynb`](notebooks/kaggle_bounded_confidence.ipynb) | A/B tests bounded confidence and co-evolving network rewiring against the controversy axis |
+| [`kaggle_argument_sensitivity.ipynb`](notebooks/kaggle_argument_sensitivity.ipynb) | which single argument moved a debate most, no ground truth needed |
 
 Cheap local runs: prefix with `LIGHTNINGFISH_MODEL=ollama:qwen2.5:7b` (llama3.2
 3B is too weak, it drops the structured format) and shrink the sim with
