@@ -178,6 +178,7 @@ minutes. Upload via Kaggle → Create → Notebook → File → Import Notebook.
 | [`kaggle_controversy.ipynb`](notebooks/kaggle_controversy.ipynb) | the controversy axis: scores whether the simulated crowd *splits*, the one output a single model call doesn't produce |
 | [`kaggle_bounded_confidence.ipynb`](notebooks/kaggle_bounded_confidence.ipynb) | A/B tests bounded confidence and co-evolving network rewiring against the controversy axis |
 | [`kaggle_argument_sensitivity.ipynb`](notebooks/kaggle_argument_sensitivity.ipynb) | which single argument moved a debate most, no ground truth needed |
+| [`kaggle_finance_scaled.ipynb`](notebooks/kaggle_finance_scaled.ipynb) | the finance domain's first real backtest, real SEC EDGAR filings through the same baseline ladder as coding and HN |
 
 Cheap local runs: prefix with `LIGHTNINGFISH_MODEL=ollama:qwen2.5:7b` (llama3.2
 3B is too weak, it drops the structured format) and shrink the sim with
