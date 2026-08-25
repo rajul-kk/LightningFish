@@ -9,6 +9,11 @@ lightningfish_finance.backtest_events caveat). Events come from a small built-in
 list of (ticker, date, headline); edit or extend as needed:
     python -m tests.integration.run_backtest finance
 
+Finance, scaled — same ladder, but events are real SEC EDGAR 8-K filings
+pulled programmatically (up to n, default 30) instead of 5 hand-picked
+triples. Requires SEC_EDGAR_USER_AGENT="Your Name you@example.com":
+    python -m tests.integration.run_backtest finance-scaled [limit]
+
 Hacker News (fully programmatic, objective, free unauthenticated API):
     python -m tests.integration.run_backtest hn [limit]
 
@@ -142,9 +147,6 @@ def _run_finance() -> None:
     from lightningfish_finance.backtest_events import pull_ticker_events
     from lightningfish_finance.config import FinanceDomainAdapter
 
-    if not (os.environ.get("REDDIT_CLIENT_ID") and os.environ.get("REDDIT_CLIENT_SECRET")):
-        print("Warning: REDDIT_CLIENT_ID/SECRET not set — ground truth fetch will fail.")
-
     print(f"Building {len(_FINANCE_EVENTS)} finance events...")
     events = pull_ticker_events(_FINANCE_EVENTS)
     print(f"  got {len(events)} events")
@@ -158,6 +160,37 @@ def _run_finance() -> None:
     report = run_backtest(adapter, engine, events, n_agents=n_agents,
                           n_rounds=n_rounds, baselines=_baselines(adapter, engine))
     _print_report("finance", report)
+
+
+def _run_finance_scaled(args: list[str]) -> None:
+    """
+    Same ladder as _run_finance, but events come from real SEC EDGAR 8-K
+    filings (pull_edgar_events) instead of 5 hand-picked (ticker, date,
+    headline) triples — the only way this domain gets close to the n≈30-40
+    floor METHODOLOGY.md says is needed before an accuracy number means
+    anything. Requires SEC_EDGAR_USER_AGENT as "Your Name you@example.com".
+    """
+    from lightningfish_finance.backtest_events import pull_edgar_events
+    from lightningfish_finance.config import FinanceDomainAdapter
+
+    limit = int(args[0]) if args else 30
+    print(f"Pulling up to {limit} real 8-K filings from SEC EDGAR...")
+    events = pull_edgar_events(n=limit)
+    print(f"  got {len(events)} events")
+    if len(events) < 15:
+        print("  Too few events for a meaningful result — check SEC_EDGAR_USER_AGENT "
+              "and network access, or raise the limit.")
+        sys.exit(1)
+
+    adapter = FinanceDomainAdapter()
+    if not _NO_CACHE:
+        adapter = CachingAdapter(adapter, EventCache("finance_edgar_events"))  # type: ignore[assignment]
+    model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
+    engine = SimulationEngine(adapter, model=model)
+    n_agents, n_rounds = _sim_size(100, 8)
+    report = run_backtest(adapter, engine, events, n_agents=n_agents,
+                          n_rounds=n_rounds, baselines=_baselines(adapter, engine))
+    _print_report("finance, scaled (real SEC EDGAR filings)", report)
 
 
 def _run_hn(args: list[str]) -> None:
@@ -557,7 +590,7 @@ def _run_hn_controversy_calibrated(
 
 def main() -> None:
     if len(sys.argv) < 2 or sys.argv[1] not in (
-        "coding", "finance", "hn", "hn-early", "hn-controversy",
+        "coding", "finance", "finance-scaled", "hn", "hn-early", "hn-controversy",
         "hn-controversy-calibrated", "hn-controversy-calibrated-nobc",
         "hn-controversy-calibrated-network",
     ):
@@ -567,6 +600,8 @@ def main() -> None:
         _run_coding(sys.argv[2:])
     elif sys.argv[1] == "finance":
         _run_finance()
+    elif sys.argv[1] == "finance-scaled":
+        _run_finance_scaled(sys.argv[2:])
     elif sys.argv[1] == "hn-early":
         _run_hn_early(sys.argv[2:])
     elif sys.argv[1] == "hn-controversy":

@@ -30,7 +30,7 @@ Three-tier simulation each round: **T1 originators** (~10%, highest influence) h
 **Install dependencies**
 
 ```bash
-pip install fastapi uvicorn anthropic psycopg2-binary praw yfinance \
+pip install fastapi uvicorn anthropic psycopg2-binary yfinance \
             sec-edgar-downloader requests scipy
 ```
 
@@ -39,15 +39,12 @@ pip install fastapi uvicorn anthropic psycopg2-binary praw yfinance \
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 DATABASE_URL=postgresql://user:pass@host/db    # Neon free tier works
-REDDIT_CLIENT_ID=...
-REDDIT_CLIENT_SECRET=...
-REDDIT_USER_AGENT=lightningfish/0.1
 GITHUB_TOKEN=ghp_...
 SEC_EDGAR_USER_AGENT=YourName yourname@example.com
 ```
 
 Minimum required for simulations: `ANTHROPIC_API_KEY` + `DATABASE_URL`.  
-Reddit/GitHub/SEC keys are only needed when those enrichers run.
+GitHub/SEC keys are only needed when those enrichers run.
 
 **Create the database schema** (once)
 
@@ -117,9 +114,6 @@ modal setup                          # authenticate once
 modal secret create lightningfish-secrets \
   ANTHROPIC_API_KEY=... \
   DATABASE_URL=... \
-  REDDIT_CLIENT_ID=... \
-  REDDIT_CLIENT_SECRET=... \
-  REDDIT_USER_AGENT=... \
   GITHUB_TOKEN=... \
   SEC_EDGAR_USER_AGENT=... \
   ALLOWED_ORIGINS=https://your-app.vercel.app
@@ -157,6 +151,10 @@ python -m tests.integration.run_backtest coding pallets flask 20
 
 # Finance: (ticker, date, headline) events scored against the price move
 python -m tests.integration.run_backtest finance
+
+# Finance, scaled: real SEC EDGAR 8-K filings pulled programmatically instead
+# of 5 hand-picked events (requires SEC_EDGAR_USER_AGENT)
+python -m tests.integration.run_backtest finance-scaled 30
 
 # Hacker News: class-balanced settled stories, scored on both points and
 # num_comments (tokenless works; free 10,000 req/hr, no GITHUB_TOKEN needed)

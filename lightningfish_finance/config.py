@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import math
-
-from scipy.stats import pearsonr
-
 from lightningfish_core.adapter import DomainAdapter
 
 _FINANCE_TAXONOMY = [
@@ -128,25 +124,21 @@ class FinanceDomainAdapter(DomainAdapter):
         return get_finance_ground_truth(seed.metadata["ticker"], filing_date)
 
     def score(self, result: SimulationResult, truth: GroundTruthRecord) -> BacktestResult:
-        sentiment = truth.data["sentiment_series"]
         price_change_pct = truth.data["price_change_pct"]
-
-        direction_match = bool(
-            (result.trajectory[-1] > 0) == (sentiment[-1] > 0)
-        ) if sentiment else False
-
-        n = min(len(result.trajectory), len(sentiment))
-        if n >= 2:
-            corr, _ = pearsonr(result.trajectory[:n], sentiment[:n])
-            magnitude_correlation = 0.0 if math.isnan(corr) else float(corr)
-        else:
-            magnitude_correlation = 0.0
+        direction_match = (result.trajectory[-1] > 0) == (price_change_pct > 0)
 
         return BacktestResult(
             direction_match=direction_match,
-            magnitude_correlation=magnitude_correlation,
+            # No longer computed: this used to correlate the trajectory against
+            # a per-round Reddit-sentiment series, which get_finance_ground_truth
+            # no longer fetches (see its docstring — the window was never
+            # actually point-in-time). Nothing here is a comparable per-round
+            # target to replace it with; price_change_pct is a single scalar,
+            # not a series. The real ladder-based path (run_backtest /
+            # score_precomputed) doesn't use this method at all.
+            magnitude_correlation=0.0,
             domain_metric={
-                "price_direction_match": (result.trajectory[-1] > 0) == (price_change_pct > 0),
+                "price_direction_match": direction_match,
                 "price_change_pct": price_change_pct,
             },
             total_tier1_calls=result.total_tier1_calls,

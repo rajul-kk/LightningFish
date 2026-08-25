@@ -1,5 +1,3 @@
-import math
-
 from lightningfish_core.models import (
     EnrichedSeed,
     GroundTruthRecord,
@@ -48,19 +46,17 @@ def test_agent_system_prompt_contains_archetype():
 def test_score_direction_match():
     adapter = FinanceDomainAdapter()
     truth = GroundTruthRecord(data={
-        "sentiment_series": [0.1, 0.2, 0.3],
         "price_series": [100.0, 102.0, 105.0],
         "price_change_pct": 0.05,
     })
     scored = adapter.score(_result([0.1, 0.2, 0.4]), truth)
     assert scored.direction_match is True
-    assert not math.isnan(scored.magnitude_correlation)
+    assert scored.magnitude_correlation == 0.0
 
 
 def test_score_direction_mismatch_price():
     adapter = FinanceDomainAdapter()
     truth = GroundTruthRecord(data={
-        "sentiment_series": [0.1, 0.2, 0.3],
         "price_series": [100.0, 99.0, 98.0],
         "price_change_pct": -0.02,
     })

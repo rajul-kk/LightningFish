@@ -6,9 +6,6 @@ Serve:    modal serve lightningfish_service/modal_app.py
 Secrets:  modal secret create lightningfish-secrets \
             ANTHROPIC_API_KEY=... \
             DATABASE_URL=... \
-            REDDIT_CLIENT_ID=... \
-            REDDIT_CLIENT_SECRET=... \
-            REDDIT_USER_AGENT=... \
             GITHUB_TOKEN=... \
             SEC_EDGAR_USER_AGENT=... \
             ALLOWED_ORIGINS=https://your-vercel-app.vercel.app
@@ -31,7 +28,6 @@ image = (
         "pydantic>=2.7",
         "scipy>=1.12",
         "yfinance>=0.2",
-        "praw>=7.7",
         "requests>=2.31",
         "sec-edgar-downloader>=5.0",
         "PyGithub>=2.0",

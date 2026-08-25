@@ -15,7 +15,6 @@ dependencies = [
     "yfinance>=0.2.40",
     "sec-edgar-downloader>=5.0.0",
     "requests>=2.31.0",
-    "praw>=7.7.0",
 ]
 
 [project.optional-dependencies]
