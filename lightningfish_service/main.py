@@ -30,7 +30,7 @@ import lightningfish_finance  # noqa: F401
 import lightningfish_hn  # noqa: F401
 
 from .limiter import limiter
-from .routes import backtest, chat, enrich, keys, local, simulate
+from .routes import chat, enrich, keys, local, simulate
 
 app = FastAPI(title="Lightningfish Service", version="0.1.0")
 app.state.limiter = limiter
@@ -51,7 +51,6 @@ app.add_middleware(
 app.include_router(enrich.router, prefix="/enrich", tags=["enrich"])
 app.include_router(simulate.router, prefix="/simulate", tags=["simulate"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
-app.include_router(backtest.router, prefix="/backtest", tags=["backtest"])
 app.include_router(keys.router, prefix="/keys", tags=["keys"])
 app.include_router(local.router, prefix="/local", tags=["local"])
 

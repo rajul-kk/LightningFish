@@ -1,7 +1,6 @@
 import pytest
 
 from lightningfish_core.adapter import DomainAdapter
-from lightningfish_core.enricher import EnricherPlugin
 from lightningfish_core.models import AgentPersona
 from lightningfish_core.rule_agent import RuleBasedAgent
 
@@ -9,11 +8,6 @@ from lightningfish_core.rule_agent import RuleBasedAgent
 def test_domain_adapter_is_abstract():
     with pytest.raises(TypeError):
         DomainAdapter()
-
-
-def test_enricher_plugin_is_abstract():
-    with pytest.raises(TypeError):
-        EnricherPlugin()
 
 
 def test_rule_based_agent_is_subclass_of_agent_persona():

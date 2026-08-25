@@ -362,8 +362,3 @@ class SimulationEngine:
         except StopIteration as e:
             return e.value
 
-    def _llm_opinion(self, seed: EnrichedSeed, agent: AgentPersona) -> tuple[float, float]:
-        system = self.adapter.agent_system_prompt(seed, agent)
-        return self.provider.get_opinion(
-            system, "Output ONLY the number.", self.model, temperature=self.temperature,
-        )
