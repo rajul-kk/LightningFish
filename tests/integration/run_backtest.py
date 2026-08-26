@@ -4,12 +4,12 @@ Backtest CLI: does the simulation beat a naive baseline on real outcomes?
 Coding (fully programmatic, objective):
     GITHUB_TOKEN=... python -m tests.integration.run_backtest coding <owner> <repo> [limit]
 
-Finance (price ground truth is point-in-time; event text is not — see
+Finance (price ground truth is point-in-time; event text is not, see
 lightningfish_finance.backtest_events caveat). Events come from a small built-in
 list of (ticker, date, headline); edit or extend as needed:
     python -m tests.integration.run_backtest finance
 
-Finance, scaled — same ladder, but events are real SEC EDGAR 8-K filings
+Finance, scaled: same ladder, but events are real SEC EDGAR 8-K filings
 pulled programmatically (up to n, default 30) instead of 5 hand-picked
 triples. Requires SEC_EDGAR_USER_AGENT="Your Name you@example.com":
     python -m tests.integration.run_backtest finance-scaled [limit]
@@ -17,23 +17,23 @@ triples. Requires SEC_EDGAR_USER_AGENT="Your Name you@example.com":
 Hacker News (fully programmatic, objective, free unauthenticated API):
     python -m tests.integration.run_backtest hn [limit]
 
-Hacker News + early comments — the same stories re-seeded with their first
+Hacker News + early comments, the same stories re-seeded with their first
 2h of community reaction, to test whether dynamic signal beats the measured
 submission-only ceiling (METHODOLOGY.md). Requires a prior `hn` run:
     python -m tests.integration.run_backtest hn-early [limit]
 
-Hacker News controversy — scores whether the crowd SPLITS (dispersion of the
+Hacker News controversy, scores whether the crowd SPLITS (dispersion of the
 final opinion distribution) rather than which way it leans. The only axis
 where the simulation's output differs in kind from one raw model call:
     python -m tests.integration.run_backtest hn-controversy [limit]
 
-Add "blind" to restrict to stories that drew no early discussion — the only
+Add "blind" to restrict to stories that drew no early discussion, the only
 subgroup where the early-comment count baseline carries no information and
 the simulation must read submission content to beat it:
     python -m tests.integration.run_backtest hn-early blind
 
 Runs BOTH a points-direction (reception/virality) and a num_comments-direction
-(engagement) backtest against the SAME simulated events — one simulation per
+(engagement) backtest against the SAME simulated events, one simulation per
 event, scored twice via score_precomputed(). See
 specs/2026-08-09-hn-sentiment-domain-design.md.
 
@@ -116,7 +116,7 @@ def _run_coding(args: list[str]) -> None:
     limit = int(args[2]) if len(args) > 2 else 20
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
-        print("Note: GITHUB_TOKEN not set — using unauthenticated GitHub API "
+        print("Note: GITHUB_TOKEN not set, using unauthenticated GitHub API "
               "(60 req/hr; keep limit small, ~8 PRs).")
 
     adapter = CodingDomainAdapter()
@@ -165,10 +165,10 @@ def _run_finance() -> None:
 def _run_finance_scaled(args: list[str]) -> None:
     """
     Same ladder as _run_finance, but events come from real SEC EDGAR 8-K
-    filings (pull_edgar_events) instead of 5 hand-picked (ticker, date,
-    headline) triples — the only way this domain gets close to the n≈30-40
-    floor METHODOLOGY.md says is needed before an accuracy number means
-    anything. Requires SEC_EDGAR_USER_AGENT as "Your Name you@example.com".
+    filings (pull_edgar_events) instead of 5 hand-picked triples, the only
+    way this domain gets close to the n≈30-40 floor METHODOLOGY.md says is
+    needed before an accuracy number means anything. Requires
+    SEC_EDGAR_USER_AGENT as "Your Name you@example.com".
     """
     from lightningfish_finance.backtest_events import pull_edgar_events
     from lightningfish_finance.config import FinanceDomainAdapter
@@ -178,7 +178,7 @@ def _run_finance_scaled(args: list[str]) -> None:
     events = pull_edgar_events(n=limit)
     print(f"  got {len(events)} events")
     if len(events) < 15:
-        print("  Too few events for a meaningful result — check SEC_EDGAR_USER_AGENT "
+        print("  Too few events for a meaningful result, check SEC_EDGAR_USER_AGENT "
               "and network access, or raise the limit.")
         sys.exit(1)
 
@@ -220,11 +220,10 @@ def _run_hn(args: list[str]) -> None:
     engine = SimulationEngine(points_adapter, model=model)
     n_agents, n_rounds = _sim_size(60, 6)
 
-    # Simulate each event once (the expensive step) — score it twice (cheap),
-    # once per ground-truth axis. See "Backtest integration" in
-    # specs/2026-08-09-hn-sentiment-domain-design.md. Note: the single_llm
-    # baseline is still called once per adapter (twice total) since it isn't
-    # part of the expensive simulation loop — an accepted, minor v1 cost.
+    # Simulate each event once (expensive), score it twice (cheap), once per
+    # ground-truth axis. See "Backtest integration" in
+    # specs/2026-08-09-hn-sentiment-domain-design.md. The single_llm baseline
+    # is still called once per adapter (twice total), an accepted minor cost.
     pairs = []
     for event in events:
         agents = points_adapter.build_personas(n_agents)
@@ -243,14 +242,13 @@ def _run_hn_early(args: list[str]) -> None:
     The early-comments experiment: same stories as a prior `hn` run, but each
     seed also carries the story's first-N-hours of community reaction.
 
-    Deliberately PAIRED — story ids are read from the submission-only cache
-    rather than pulled fresh, so any accuracy difference is attributable to the
-    added reaction section and not to a different sample of stories.
+    Deliberately PAIRED: story ids are read from the submission-only cache
+    rather than pulled fresh, so any accuracy difference is attributable to
+    the added reaction section, not a different sample of stories.
 
     The baseline ladder gains a rung: "naive_early" predicts purely from the
-    early comment COUNT. The simulation only earns a result here by beating
-    that, which is what would show it is reading the comment TEXT rather than
-    just noticing that comments exist.
+    early comment COUNT. The simulation only earns a result by beating that,
+    showing it reads the comment TEXT rather than just noticing comments exist.
     """
     from lightningfish_core.backtest import BacktestEvent
     from lightningfish_hn.config import HNCommentsAdapter, HNDomainAdapter
@@ -272,14 +270,14 @@ def _run_hn_early(args: list[str]) -> None:
     ]
     if not story_ids:
         print("No submission-only HN cache found. Run "
-              "'python -m tests.integration.run_backtest hn 40' first — this "
+              "'python -m tests.integration.run_backtest hn 40' first, this "
               "experiment reuses those exact stories so the comparison is paired.")
         sys.exit(1)
 
     # "blind" restricts to stories that drew NO early discussion. The
     # early-comment count baseline is saturated where comments exist (every
     # such story in the sample went viral) and blind here, guessing "flop" for
-    # all of them — so this subgroup is the only place the simulation can show
+    # all of them, so this subgroup is the only place the simulation can show
     # it reads submission content rather than counting reactions.
     blind_only = "blind" in args
     limits = [a for a in args if a.isdigit()]
@@ -325,7 +323,7 @@ def _run_hn_early(args: list[str]) -> None:
     # early comments. Refuse rather than report a meaningless baseline.
     if above_thresh == 0 or above_thresh == len(events):
         print(
-            f"\n  ABORT: early-comment enrichment is degenerate — "
+            f"\n  ABORT: early-comment enrichment is degenerate, "
             f"{above_thresh}/{len(events)} events are above the threshold, so "
             f"naive_early predicts one class for everything and the comparison "
             f"is meaningless.\n"
@@ -358,7 +356,7 @@ def _run_hn_early(args: list[str]) -> None:
 
     _print_report("hn+early (points / reception)",
                   score_precomputed(points_adapter, pairs, baselines=_ladder(points_adapter)))
-    _print_report("hn+early (num_comments / engagement) — SELF-PREDICTING, see caveat",
+    _print_report("hn+early (num_comments / engagement), SELF-PREDICTING, see caveat",
                   score_precomputed(comments_adapter, pairs, baselines=_ladder(comments_adapter)))
     print("\nNote: early comment count is a strict prefix of the 24h num_comments "
           "target, so the engagement axis above partially predicts itself. The "
@@ -369,11 +367,11 @@ def _run_hn_controversy(args: list[str]) -> None:
     """
     Scores whether the crowd SPLITS rather than which way it leans.
 
-    Every other run here reduces a simulation to sign(final mean) — one bit,
-    and the same bit one raw LLM call produces, which is why the multi-agent
-    machinery has never had a structural edge to show. Dispersion is the thing
-    only a population can express, so this is the first backtest where rung 2
-    is a fair fight.
+    Every other run here reduces a simulation to sign(final mean), one bit,
+    the same bit one raw LLM call produces, which is why the multi-agent
+    machinery has never had a structural edge to show. Dispersion is the
+    thing only a population can express, so this is the first backtest
+    where rung 2 is a fair fight.
 
     Simulations are cached (trajectory + final distribution) so re-scoring
     against a different question later costs nothing.
@@ -407,7 +405,7 @@ def _run_hn_controversy(args: list[str]) -> None:
     print(f"  {len(scoreable)} of {len(events)} events have a controversy direction "
           f"(rest are mid-ratio or below the points floor)", flush=True)
     if not scoreable:
-        print("  nothing to score — pull more stories with a larger limit")
+        print("  nothing to score, pull more stories with a larger limit")
         sys.exit(1)
 
     pairs = []
@@ -434,11 +432,11 @@ def _run_hn_controversy(args: list[str]) -> None:
     _print_report("hn (controversy / does the crowd split)", report)
 
     # A one-class predictor can still post a plausible-looking accuracy on
-    # imbalanced classes — observed here when CachingAdapter silently failed
-    # to delegate sim_direction and every event scored on the mean axis
-    # instead of dispersion. That bug is fixed, but a constant predictor can
-    # also mean the threshold is simply miscalibrated for this population/
-    # model, so check every time rather than trusting the accuracy number.
+    # imbalanced classes, observed here when CachingAdapter silently failed
+    # to delegate sim_direction and every event scored the mean axis instead
+    # of dispersion. That bug is fixed, but a constant predictor can also
+    # mean the threshold is miscalibrated for this population/model, so
+    # check every time rather than trusting the accuracy number.
     sim_dirs = [o.sim_direction for o in report.outcomes]
     if sim_dirs and len(set(sim_dirs)) == 1:
         spreads = [
@@ -447,7 +445,7 @@ def _run_hn_controversy(args: list[str]) -> None:
         ]
         print(
             f"\n  WARNING: the simulation predicted the SAME class for all "
-            f"{len(sim_dirs)} events — its dispersion carries no information "
+            f"{len(sim_dirs)} events, its dispersion carries no information "
             f"in this run and the accuracy above is not a result.\n"
             f"  observed stddev range: "
             f"{min(spreads):.3f}-{max(spreads):.3f}" if spreads else ""
@@ -458,27 +456,27 @@ def _run_hn_controversy_calibrated(
     args: list[str], bounded_confidence: bool = True, coevolving_network: bool = False,
 ) -> None:
     """
-    Same question as hn-controversy — does the crowd split — but derives the
+    Same question as hn-controversy, does the crowd split, but derives the
     stddev threshold from a held-out calibration batch instead of trusting
     the module's uncalibrated 0.35 guess, which fired on zero of 107 real
     events (METHODOLOGY.md rule 3/6: don't tune a threshold on the data it's
-    scored against — including your own prior guess, once you've seen it fail).
+    scored against, including your own prior guess once you've seen it fail).
 
-    Pulled events are split deterministically by a hash of their event id into
-    ~40% calibration / ~60% evaluation. Only the calibration half's simulated
-    stddevs inform the threshold (its median); only the evaluation half's
-    accuracy is reported as a result.
+    Pulled events are split deterministically by a hash of their event id
+    into ~40% calibration / ~60% evaluation. Only the calibration half's
+    simulated stddevs inform the threshold (its median); only the
+    evaluation half's accuracy is reported as a result.
 
     bounded_confidence: passed straight through to build_personas. False
-    reproduces the pre-bounded-confidence T3 update (every gate at 2.0, never
-    fires), so this same harness A/B-tests the mechanism against the ground
-    truth it was proposed to help with, rather than assuming the effect.
-    METHODOLOGY.md's "Worked results" table found this doesn't move the axis
-    (n=42, 48% off vs 52% on, both below baseline, both non-significant).
+    reproduces the pre-bounded-confidence T3 update (every gate at 2.0,
+    never fires), so this harness A/B-tests the mechanism against the
+    ground truth it was proposed to help with, rather than assuming the
+    effect. METHODOLOGY.md's "Worked results" table found this doesn't move
+    the axis (n=42, 48% off vs 52% on, both below baseline, non-significant).
 
     coevolving_network: passed to engine.run. False (default) is the fixed
-    follower graph every other run in this file uses. True rewires it each
-    round via rewire_follower_graph — untested against this ground truth yet.
+    follower graph every other run here uses. True rewires it each round
+    via rewire_follower_graph, untested against this ground truth yet.
     """
     import hashlib
 
@@ -489,8 +487,8 @@ def _run_hn_controversy_calibrated(
     limit = int(args[0]) if args else 300
     cache = EventCache("hn_stories")
     # Threshold doesn't affect get_ground_truth/truth_direction/naive_prediction,
-    # so a plain adapter is fine for the filtering and simulation pass below —
-    # the calibrated threshold is only plugged in for the final scoring.
+    # so a plain adapter is fine for filtering and simulation below; the
+    # calibrated threshold is only plugged in for the final scoring.
     filter_adapter = CachingAdapter(HNControversyAdapter(), cache)
     events = cached_pull_events(
         cache, f"hn:points:{limit}", lambda: pull_hn_events("points", limit)
@@ -513,18 +511,16 @@ def _run_hn_controversy_calibrated(
     print(f"  split: {len(calib)} calibration / {len(evalset)} evaluation", flush=True)
     if len(calib) < 15 or len(evalset) < 15:
         print("  ABORT: too few events in one split to calibrate or evaluate "
-              "meaningfully — pull more stories with a larger limit")
+              "meaningfully, pull more stories with a larger limit")
         sys.exit(1)
 
     model = os.environ.get("LIGHTNINGFISH_MODEL", "claude-haiku-4-5-20251001")
     engine = SimulationEngine(filter_adapter, model=model)
     n_agents, n_rounds = _sim_size(60, 6)
-    # bounded_confidence=False intentionally reuses the pre-existing (unsuffixed)
-    # cache key: it is byte-identical to every run before this mechanism existed
-    # (confidence_bound didn't exist, so the gate never fired), so the control
-    # arm of this A/B replays cached results instead of re-spending on calls
-    # that would produce the same numbers. Same idea for coevolving_network:
-    # False is the untagged, always-existing behavior.
+    # bounded_confidence=False reuses the pre-existing (unsuffixed) cache key:
+    # it's byte-identical to every run before this mechanism existed, so the
+    # control arm replays cached results instead of re-spending on calls that
+    # would produce the same numbers. Same idea for coevolving_network.
     run_key = (
         f"{model}:{n_agents}x{n_rounds}"
         + (":bc1" if bounded_confidence else "")
@@ -582,7 +578,7 @@ def _run_hn_controversy_calibrated(
     if sim_dirs and len(set(sim_dirs)) == 1:
         print(
             f"\n  WARNING: even after calibration the predictor is constant on the "
-            f"eval set ({len(sim_dirs)} events) — the calibration and evaluation "
+            f"eval set ({len(sim_dirs)} events), the calibration and evaluation "
             f"halves have different stddev distributions, or n is too small for "
             f"the median split to generalise. Not a valid result."
         )
@@ -612,8 +608,8 @@ def main() -> None:
         # A/B control: bounded confidence off, same events/cache/threshold logic.
         _run_hn_controversy_calibrated(sys.argv[2:], bounded_confidence=False)
     elif sys.argv[1] == "hn-controversy-calibrated-network":
-        # A/B: co-evolving follower graph on, bounded confidence at its default
-        # (True) — isolates the network-rewiring effect against the
+        # A/B: co-evolving follower graph on, bounded confidence at its
+        # default (True), isolates the network-rewiring effect against the
         # already-run bc=True/network=False result as its control.
         _run_hn_controversy_calibrated(sys.argv[2:], coevolving_network=True)
     else:

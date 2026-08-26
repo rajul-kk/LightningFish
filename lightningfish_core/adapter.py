@@ -52,11 +52,11 @@ class DomainAdapter(ABC):
         """
         Which aspect of the finished simulation is being predicted, as +1/-1/0.
 
-        Defaults to the sign of the final mean opinion — but that is one bit,
-        and it is the same bit a single LLM call produces, which is why a
-        multi-agent run has no structural advantage when scored this way.
-        Override to score what only a population can express: the *dispersion*
-        of final_distribution (does the crowd split?), herding_index,
+        Defaults to the sign of the final mean opinion, but that's one bit,
+        the same bit a single LLM call produces, which is why a multi-agent
+        run has no structural advantage when scored this way. Override to
+        score what only a population can express: the dispersion of
+        final_distribution (does the crowd split?), herding_index,
         cascade_detected. See HNControversyAdapter.
         """
         return 1 if result.trajectory and result.trajectory[-1] > 0 else (
@@ -120,8 +120,8 @@ class DomainAdapter(ABC):
         System prompt for T2 (reactor) agents: the base agent prompt plus the
         social feed the agent has seen, asking for a single updated float.
 
-        T2 agents do not author structured posts, but — unlike a bare opinion
-        re-evaluation — they must actually see what the crowd is saying. Domains
+        T2 agents do not author structured posts, but, unlike a bare opinion
+        re-evaluation, they must actually see what the crowd is saying. Domains
         may override this; the default appends the feed to ``agent_system_prompt``.
         """
         base = self.agent_system_prompt(seed, persona)

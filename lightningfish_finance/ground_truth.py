@@ -13,14 +13,13 @@ def get_finance_ground_truth(ticker: str, filing_date: str) -> GroundTruthRecord
     yfinance serves actual historical OHLC bars by date, so this never reads
     anything that wasn't already public by the time the window closes.
 
-    Earlier versions of this also fetched Reddit sentiment as a second signal
-    (via subreddit search with time_filter="week"). That window is relative to
-    when the fetch runs, not to filing_date, so for any event more than a week
-    old it silently returned recent, unrelated chatter, or nothing at all: a
-    real point-in-time violation, and one the scoring never actually needed,
-    since truth_direction only reads price_change_pct. Dropped rather than
-    fixed, since a genuinely historical Reddit search isn't available through
-    this API at all.
+    Earlier versions also fetched Reddit sentiment as a second signal (via
+    subreddit search with time_filter="week"). That window was relative to
+    when the fetch ran, not to filing_date, so anything over a week old got
+    unrelated chatter or nothing: a real point-in-time violation, and one
+    scoring never needed anyway, since truth_direction only reads
+    price_change_pct. Dropped rather than fixed: a genuinely historical
+    Reddit search isn't available through this API at all.
     """
     start = datetime.datetime.fromisoformat(filing_date)
     end = start + datetime.timedelta(hours=72)

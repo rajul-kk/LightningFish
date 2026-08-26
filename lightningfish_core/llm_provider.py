@@ -17,10 +17,10 @@ _MODEL_COSTS: dict[str, tuple[float, float]] = {
 _DEFAULT_COSTS = (3e-6, 15e-6)
 _LOCAL_BASE_URL = "http://localhost:11434/v1"
 
-# Local inference on a CPU-only or otherwise loaded host is slow, but it must
-# be BOUNDED. The OpenAI SDK defaults to a 600s timeout with 2 retries, so a
-# single wedged request can stall a multi-hour backtest for 30 minutes with no
-# output — observed hanging an HN run indefinitely at event 12 of 36.
+# Local inference on a CPU-only or loaded host is slow, but must be BOUNDED.
+# The OpenAI SDK defaults to a 600s timeout with 2 retries, so one wedged
+# request can stall a backtest for 30 minutes with no output (observed
+# hanging an HN run indefinitely at event 12 of 36).
 _LOCAL_TIMEOUT_SECONDS = float(os.environ.get("LIGHTNINGFISH_LOCAL_TIMEOUT", "240"))
 
 _POST_USER_MSG = "Write your post and updated opinion now."
@@ -197,7 +197,7 @@ class AnthropicProvider:
 
 
 class LocalProvider:
-    """OpenAI-compatible local inference — Ollama, llama.cpp, vLLM, etc."""
+    """OpenAI-compatible local inference, Ollama, llama.cpp, vLLM, etc."""
 
     def __init__(self, base_url: str = _LOCAL_BASE_URL) -> None:
         self._client = openai.OpenAI(
@@ -215,10 +215,10 @@ class LocalProvider:
         """
         One bounded completion. Returns "" when the call times out or errors.
 
-        Every caller already handles an unusable response — that is what a
-        timeout is — and the existing parse-failure path surfaces it through
+        Every caller already handles an unusable response, that is what a
+        timeout is, and the parse-failure path surfaces it through
         parse_success_rate / low_confidence. Raising instead would kill a
-        multi-hour backtest on one slow request from a loaded local server.
+        backtest on one slow request from a loaded local server.
         """
         kwargs = {"temperature": temperature} if temperature is not None else {}
         try:

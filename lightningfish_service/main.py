@@ -61,8 +61,7 @@ def health():
     return {
         "status": "ok",
         "domains": [a.domain_id for a in registry.all()],
-        # A key being *set* doesn't mean it's valid, but its absence is a
-        # reliable "hosted models will fail" signal the frontend can act on
-        # before the user spends a click finding out the hard way.
+        # A key being set doesn't mean it's valid, but its absence reliably
+        # means hosted models will fail, a signal the frontend can act on.
         "anthropic_configured": bool(os.environ.get("ANTHROPIC_API_KEY")),
     }

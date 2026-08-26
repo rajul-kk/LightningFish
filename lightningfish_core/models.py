@@ -38,9 +38,8 @@ class AgentPersona:
     current_opinion: float = 0.0  # -1 to +1
     herding_coefficient: float = 0.3
     # Hegselmann-Krause bounded confidence: T3 ignores a herding target further
-    # than this from the agent's own opinion, on the |-1, 1| scale (max possible
-    # distance is 2.0). Default 2.0 never gates, so existing domains/tests that
-    # don't set it are unaffected.
+    # than this from the agent's own opinion (max distance on [-1, 1] is 2.0).
+    # Default 2.0 never gates, so existing domains/tests are unaffected.
     confidence_bound: float = 2.0
     metadata: dict = field(default_factory=dict)
     opinion_history: list[float] = field(default_factory=list)  # end-of-round opinions

@@ -86,7 +86,7 @@ def _naive_baseline(adapter: DomainAdapter) -> Callable[[BacktestEvent], int]:
 
 
 def llm_baseline(adapter: DomainAdapter, engine: SimulationEngine) -> Callable[[BacktestEvent], int]:
-    """One model call per event — the bar the multi-agent sim must clear to
+    """One model call per event, the bar the multi-agent sim must clear to
     justify running many agents over many rounds."""
     def predict(event: BacktestEvent) -> int:
         opinion, _ = engine.provider.get_opinion(
@@ -190,7 +190,7 @@ def run_backtest(
 
     Events whose ground truth is unavailable, or whose actual outcome has no
     direction (a flat price move / unresolved PR), are skipped rather than
-    scored as wrong — they carry no signal to predict.
+    scored as wrong, they carry no signal to predict.
 
     ``archetype_config`` overrides the domain's default population mix (passed
     through to ``adapter.build_personas``), letting a caller test whether a
@@ -215,11 +215,10 @@ def score_precomputed(
 ) -> BacktestReport:
     """
     Score already-simulated (event, SimulationResult) pairs against
-    ``adapter``'s ground truth, without re-running the simulation. For reusing
-    one expensive simulation across multiple differently-scored backtests —
-    e.g. the same trajectory judged by two different ground-truth axes (see
-    the HN domain's points-vs-comments backtests) — without paying to
-    simulate twice.
+    ``adapter``'s ground truth, without re-running the simulation. Reuses one
+    expensive simulation across multiple differently-scored backtests, e.g.
+    the same trajectory judged by two ground-truth axes (see the HN domain's
+    points-vs-comments backtests), without simulating twice.
     """
     if baselines is None:
         baselines = {"naive": _naive_baseline(adapter)}

@@ -103,10 +103,10 @@ class EventCache:
         Persist the parts of a finished run that scoring needs.
 
         Simulations are the expensive step and were previously discarded once
-        printed, so re-scoring the same run against a different question — the
-        crowd's dispersion rather than its mean, say — meant paying to simulate
-        again. Stores the trajectory and the final distribution, not the whole
-        object, so the cache stays small and JSON-serialisable.
+        printed, so re-scoring the same run against a different question (the
+        crowd's dispersion rather than its mean, say) meant simulating again.
+        Stores the trajectory and final distribution, not the whole object,
+        so the cache stays small and JSON-serialisable.
         """
         entry = self._data.setdefault(event_id, {})
         entry.setdefault("runs", {})[run_key] = {
@@ -127,11 +127,11 @@ class EventCache:
         Import ``other``'s ground truth for events this cache already knows,
         without touching seeds. Returns the number of records copied.
 
-        For running a second experiment over the same events with differently
-        enriched seeds: without this, the new cache has no truth, re-fetches it,
-        and silently re-measures. Outcomes that move between the two
-        measurements (HN points keep accruing) then make a "paired" comparison
-        unpaired — observed flipping one story's class from flop to viral.
+        For a second experiment over the same events with differently
+        enriched seeds: without this, the new cache re-fetches truth and
+        silently re-measures. Outcomes that move between measurements (HN
+        points keep accruing) then unpair a "paired" comparison, observed
+        flipping one story's class from flop to viral.
         """
         copied = 0
         for event_id, entry in self._data.items():
@@ -172,10 +172,9 @@ class CachingAdapter(DomainAdapter):
         self, n_agents: int, archetype_config: dict[str, float] | None = None, **kwargs
     ) -> list[AgentPersona]:
         # **kwargs forwards domain-specific extras (e.g. HN's bounded_confidence,
-        # memory) that aren't part of the base DomainAdapter signature — without
-        # this, a wrapped adapter silently rejects them instead of ignoring or
-        # applying them (METHODOLOGY.md rule 6: this exact wrapper already broke
-        # once by reimplementing a hook instead of forwarding through it).
+        # memory) not part of the base DomainAdapter signature (METHODOLOGY.md
+        # rule 6: this wrapper already broke once by reimplementing a hook
+        # instead of forwarding through it).
         return self._inner.build_personas(n_agents, archetype_config, **kwargs)
 
     def agent_system_prompt(self, seed: EnrichedSeed, persona: AgentPersona) -> str:

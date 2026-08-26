@@ -20,9 +20,7 @@ _MOMENTUM_WEIGHT = 0.2
 
 # Fraction of the T3 herding target drawn from the influence-weighted global
 # crowd vs. the agent's own archetype cluster. In-group dominates so echo
-# chambers (and bifurcation) can persist, while cross-group contagion still
-# exists — the previous code pulled agents only toward their own cluster, so
-# archetypes never influenced each other.
+# chambers can persist, while cross-group contagion still exists.
 _GLOBAL_HERD_WEIGHT = 0.3
 
 # How many times to re-request a T1 post whose structured format failed to parse
@@ -71,12 +69,12 @@ class SimulationEngine:
         self.model = model
         self.provider: LLMProvider = make_provider(model, base_url)
         self.router = TierRouter()
-        # Tunable dynamics (see module constants for defaults) — exposed so the
+        # Tunable dynamics (see module constants for defaults), exposed so the
         # calibration harness can sweep them against backtest accuracy.
         self.global_herd_weight = global_herd_weight
         self.momentum_weight = momentum_weight
         # None leaves every provider call at its API/model default (normal
-        # simulations want that variance — it's what makes personas diverge).
+        # simulations want that variance, it's what makes personas diverge).
         # Set low for callers that need near-identical runs to compare
         # against each other, e.g. argument_sensitivity_report.
         self.temperature = temperature
@@ -102,22 +100,19 @@ class SimulationEngine:
                 result = e.value
 
         excluded_argument_tags: counterfactual replay lever. A T1 post tagged
-        with one of these never enters circulation — not shown in any later
-        feed, never the viral post, absent from the argument timeline and
-        round diversity metrics. This suppresses an argument's influence on
-        everyone who would have read it; it does not retroactively change
-        what its own author privately concluded that round (their opinion
-        update already happened by the time the tag is known). Run the same
-        seed/agents/rounds twice, once with a tag excluded, to see what a
-        specific argument was worth to the outcome.
+        with one of these never enters circulation: not shown in any later
+        feed, never the viral post, absent from the argument timeline. This
+        suppresses an argument's influence on everyone who would have read
+        it; it doesn't retroactively change what its own author concluded
+        that round. Run the same seed/agents/rounds twice, once with a tag
+        excluded, to see what that argument was worth to the outcome.
 
-        coevolving_network: default False reproduces the existing behavior —
-        the follower graph is built once from influence_weight/archetype and
-        never changes. True rewires it after every round via
-        rewire_follower_graph: peer slots drop a followed account once its
-        opinion has drifted too far and refill from closer same-archetype
-        accounts, so echo chambers form as a consequence of the debate rather
-        than being fixed at round 0. Top-influence accounts are never dropped.
+        coevolving_network: default False keeps the existing behavior, the
+        follower graph is built once and never changes. True rewires it
+        after every round via rewire_follower_graph: peer slots drop a
+        followed account once its opinion drifts too far and refill from
+        closer same-archetype accounts, so echo chambers form as a
+        consequence of the debate rather than being fixed at round 0.
         """
         store = PostStore(excluded_argument_tags=excluded_argument_tags)
         tracker = SettledTracker()
@@ -147,7 +142,7 @@ class SimulationEngine:
             # before any updates so it reflects the state agents are reacting to.
             crowd_signal = _influence_weighted_mean(agents)
 
-            # — T1: generate structured post + updated opinion —
+            # T1: generate structured post + updated opinion
             for agent in t1:
                 feed = store.sample_for_feed(
                     agent, round_num, followed_ids=follower_graph.get(agent.unique_id)
@@ -193,7 +188,7 @@ class SimulationEngine:
 
             total_cost_usd += round_cost
 
-            # — T2: reactors re-evaluate after reading the feed (one call each) —
+            # T2: reactors re-evaluate after reading the feed (one call each)
             for agent in t2:
                 feed = store.sample_for_feed(
                     agent, round_num, followed_ids=follower_graph.get(agent.unique_id)
@@ -207,7 +202,7 @@ class SimulationEngine:
                 override_fn = agent.metadata.get("resistance_override_fn")
                 agent.current_opinion = blend_opinion(agent, llm_opinion, crowd_signal, override_fn)
 
-            # — T3: herding math (no LLM) —
+            # T3: herding math (no LLM)
             # Target blends the influence-weighted global crowd with the agent's own
             # archetype cluster, so groups pull on each other instead of drifting in
             # isolation. contrarian_tendency damps (or, past 1.0, would invert) the pull.
@@ -223,7 +218,7 @@ class SimulationEngine:
                     )
                     λ = agent.herding_coefficient
                     # Conformists (λ ≥ 0) herd less the more contrarian they are.
-                    # Diverging agents (λ < 0) are left intact — applying the same
+                    # Diverging agents (λ < 0) are left intact, applying the same
                     # damping would shrink their divergence toward zero and remove
                     # the force that produces bifurcation.
                     effective_λ = λ * (1.0 - agent.contrarian_tendency) if λ >= 0 else λ
@@ -242,21 +237,19 @@ class SimulationEngine:
                     )
                     agent.current_opinion = max(-1.0, min(1.0, raw))
 
-            # — Record end-of-round opinion so agents carry a trajectory (memory) —
+            # Record end-of-round opinion so agents carry a trajectory (memory)
             for agent in agents:
                 agent.opinion_history.append(agent.current_opinion)
 
-            # — Rewire the follower graph against the opinions just recorded, so
-            #   next round's feeds reflect who agents would still choose to
-            #   follow, not who they followed before anyone had said anything —
+            # Rewire the follower graph against the opinions just recorded
             network_churn = 0.0
             if coevolving_network:
                 follower_graph, network_churn = rewire_follower_graph(agents, follower_graph)
 
-            # — Update settled tracker —
+            # Update settled tracker
             settled_ids = tracker.update(agents)
 
-            # — Aggregate opinion metrics —
+            # Aggregate opinion metrics
             opinions = [a.current_opinion for a in agents]
             mean_op = statistics.mean(opinions)
             stddev_op = statistics.stdev(opinions) if len(opinions) > 1 else 0.0
@@ -269,7 +262,7 @@ class SimulationEngine:
             herding_delta = herding_index - prev_herding_index
             prev_herding_index = herding_index
 
-            # — Argument diversity metrics (validated against the taxonomy) —
+            # Argument diversity metrics (validated against the taxonomy)
             round_tags = list({
                 (p.argument_tag if p.argument_tag in taxonomy_set else "other")
                 for p in round_posts
@@ -281,8 +274,8 @@ class SimulationEngine:
             all_seen_tags.update(valid_tags)
             ads = len(all_seen_tags) / max(len(taxonomy), 1)  # bounded in [0, 1]
 
-            # — Cascade detection: z-score vs the movement distribution, once we
-            #   have enough history; fixed threshold for the first few rounds. —
+            # Cascade detection: z-score vs the movement distribution, once we
+            #   have enough history; fixed threshold for the first few rounds.
             prev_mean = trajectory[-1] if trajectory else mean_op
             movement = abs(mean_op - prev_mean)
             if len(movement_history) >= _CASCADE_MIN_HISTORY:
@@ -296,7 +289,7 @@ class SimulationEngine:
             if cascade and round_posts:
                 trigger = Counter(p.archetype for p in round_posts).most_common(1)[0][0]
 
-            # — Structured-output health: fraction of T1 posts that parsed cleanly —
+            # Structured-output health: fraction of T1 posts that parsed cleanly
             parse_success_rate = (
                 sum(1 for p in round_posts if p.parse_ok) / len(round_posts)
                 if round_posts else 1.0

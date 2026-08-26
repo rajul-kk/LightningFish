@@ -25,9 +25,8 @@ class PostStore:
         self._posts: list[SocialPost] = []
         self._by_round: dict[int, list[SocialPost]] = {}
         # Counterfactual replay lever: a post tagged with one of these never
-        # enters circulation, so it can't appear in any feed, as the viral
-        # post, or in the argument timeline — "this argument was never
-        # raised," not "was raised but discounted."
+        # enters circulation. "This argument was never raised," not "was
+        # raised but discounted."
         self._excluded_tags = excluded_argument_tags or set()
 
     def add(self, post: SocialPost) -> None:
@@ -118,17 +117,15 @@ def rewire_follower_graph(
     n_peers: int = 2,
 ) -> tuple[dict[str, set[str]], float]:
     """
-    Reconsider each agent's follow list against CURRENT opinions: drop a
-    followed peer whose opinion has drifted more than disagreement_bound away
-    and refill from same-archetype accounts within the bound. Top-influence
-    accounts are exempt from dropping — they're followed for reach, not
-    agreement, same as build_follower_graph — so only the echo-chamber slots
-    actually rewire; that's the mechanism this models: people don't unfollow
-    the loudest voice in the room, they unfollow peers who turned out to
-    disagree.
+    Reconsider each agent's follow list against current opinions: drop a
+    followed peer who's drifted more than disagreement_bound away, refill
+    from same-archetype accounts within the bound. Top-influence accounts
+    are exempt (followed for reach, not agreement), so only the echo-chamber
+    slots rewire: people unfollow peers who turned out to disagree, not the
+    loudest voice in the room.
 
-    Returns (new_graph, churn) where churn is the fraction of all edges
-    across all agents that changed, for the round's SocialMetrics.
+    Returns (new_graph, churn), churn being the fraction of edges that
+    changed across all agents, for the round's SocialMetrics.
     """
     by_id = {a.unique_id: a for a in agents}
     top_ids = {

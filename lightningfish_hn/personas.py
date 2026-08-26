@@ -4,18 +4,17 @@ import random
 import uuid
 
 # NOTE: Parameter values below are first-pass estimates pending validation
-# against real Hacker News data. Not grounded in published literature — same
+# against real Hacker News data. Not grounded in published literature, same
 # caveat as lightningfish_coding/personas.py. Treat calibration results as
 # provisional until validated by a real backtest run.
 from lightningfish_core.jitter import jitter
 from lightningfish_core.models import AgentPersona
 from lightningfish_core.persona_memory import PersonaMemoryStore
 
-# confidence_bound: Hegselmann-Krause style gate, first-pass estimates (same
-# caveat as everything else here — not tuned against the backtest). Narrow for
-# archetypes whose whole trait is dismissing opinions unlike their own
-# (pedants, cynics); wide-to-off for archetypes defined by being swayed by
-# whatever the crowd is doing (lurkers, hype-beasts, founders).
+# confidence_bound: Hegselmann-Krause style gate, first-pass estimates, not
+# tuned against the backtest. Narrow for archetypes whose whole trait is
+# dismissing opinions unlike their own (pedants, cynics); wide-to-off for
+# archetypes defined by being swayed by the crowd (lurkers, hype-beasts, founders).
 _ARCHETYPE_CONFIGS: list[dict] = [
     dict(archetype="CasualLurkerVoter",     opinion_resistance=0.35, recency_bias=0.45, contrarian_tendency=0.10, influence_weight=0.10, proportion=0.30, herding_coefficient=0.45, confidence_bound=1.60),
     dict(archetype="EarlyAdopterHypeBeast", opinion_resistance=0.15, recency_bias=0.90, contrarian_tendency=0.05, influence_weight=0.35, proportion=0.18, herding_coefficient=0.70, confidence_bound=1.80),
@@ -40,15 +39,14 @@ def build_hn_personas(
     normalized to sum to 1.0. Pass None to use defaults.
 
     bounded_confidence: apply each archetype's confidence_bound (default).
-    False forces every agent's bound to 2.0 (never gates) — the pre-bounded-
+    False forces every agent's bound to 2.0 (never gates), the pre-bounded-
     confidence behavior, kept as an A/B lever for backtesting the mechanism
     against the controversy axis rather than assuming it helps.
 
-    memory: optional cross-run track record store. When given, each persona's
-    metadata["track_record"] is set to that archetype's (correct, total) over
-    past scored runs (None if this archetype has never been scored), for
-    prompts to surface as calibration context. None (default) leaves
-    metadata untouched — no behavior change for callers that don't pass it.
+    memory: optional cross-run track record store. When given, each
+    persona's metadata["track_record"] is set to that archetype's (correct,
+    total) over past scored runs (None if never scored), for prompts to
+    surface as calibration context. Default leaves metadata untouched.
     """
     by_name = {cfg["archetype"]: cfg for cfg in _ARCHETYPE_CONFIGS}
 

@@ -1,12 +1,11 @@
 """
 Cross-run track record per (domain, archetype): how often that archetype's
-opinion direction has agreed with the eventual settled outcome, accumulated
-across every backtest run that has scored it — not within one simulation.
+opinion direction agreed with the eventual settled outcome, accumulated
+across every backtest run that has scored it, not within one simulation.
 
-This is the thing a single knowledge-graph-scoped agent memory (e.g. one
-scenario's worth of "long-term memory") cannot do: a GreybeardCynic that has
-been wrong 80% of the time across the last 40 debates carries that record
-into the next one, persisted to disk between separate process invocations.
+A single knowledge-graph-scoped agent memory can't do this: a GreybeardCynic
+wrong 80% of the time over the last 40 debates carries that record into the
+next one, persisted to disk between separate process invocations.
 """
 from __future__ import annotations
 

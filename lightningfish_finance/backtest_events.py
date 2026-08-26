@@ -62,14 +62,13 @@ def _clean_filing_text(raw_html: str) -> str:
     """
     SEC filings are inline-XBRL-tagged HTML; agents read plain text.
 
-    Every 8-K opens with a cover page, checkbox disclosures, registrant name,
-    trading symbol table, none of which mentions what actually happened. On
-    a real filing this ran to ~2800 characters before the first "Item 5.02"
-    (or similar) section header, which is where the substantive disclosure
-    actually starts. Truncating from character 0 was mostly capturing that
-    boilerplate and cutting off the real content, which is also why every
-    seed built this way classified as the same generic event type: the
-    keyword classifier had almost nothing but boilerplate to look at.
+    Every 8-K opens with a cover page, checkbox disclosures, registrant
+    name, trading symbol table, none of which mentions what happened. On a
+    real filing this ran ~2800 characters before the first "Item 5.02" (or
+    similar) section header, where the substantive disclosure starts.
+    Truncating from character 0 mostly captured boilerplate and cut off the
+    real content, also why every seed built this way classified as the same
+    generic event type: the keyword classifier had only boilerplate to look at.
     """
     text = _TAG_RE.sub(" ", raw_html)
     text = html.unescape(text)
