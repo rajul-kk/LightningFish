@@ -31,7 +31,11 @@ def get_finance_ground_truth(ticker: str, filing_date: str) -> GroundTruthRecord
         interval="1h",
         progress=False,
     )
-    price_series: list[float] = price_df["Close"].dropna().tolist()
+    # yfinance returns "Close" as a single-column DataFrame under a MultiIndex
+    # (Price, Ticker) even for one ticker. squeeze(axis=1) collapses just the
+    # column dimension to a Series; a plain .squeeze() also collapses a
+    # single-row frame down to a bare scalar, which breaks on 0 or 1 rows.
+    price_series: list[float] = price_df["Close"].squeeze(axis=1).dropna().tolist()
     price_change_pct = (
         (price_series[-1] - price_series[0]) / price_series[0]
         if len(price_series) >= 2
