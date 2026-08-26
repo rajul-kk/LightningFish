@@ -105,9 +105,14 @@ class FinanceDomainAdapter(DomainAdapter):
         return f"{ticker}@{filing_date}" if ticker and filing_date else None
 
     def naive_prediction(self, seed: EnrichedSeed) -> float:
-        # Content-free baseline: net sentiment of positive vs negative keywords
-        # in the event summary. This is what the simulation must beat.
-        text = seed.summary.lower()
+        # Content-free baseline: net sentiment of positive vs negative keywords.
+        # Reads raw_input["filing_text"] (up to 4000 chars), not seed.summary,
+        # which truncates to 200 chars for display. Found the hard way: after
+        # backtest_events._clean_filing_text started skipping to the first
+        # "Item X.XX" header, those 200 chars were mostly the header itself,
+        # so this baseline scored 6% (near-degenerate) on a real run, it never
+        # saw far enough into the filing to hit any keyword.
+        text = str(seed.raw_input.get("filing_text") or seed.summary).lower()
         pos = sum(1 for w in _POSITIVE_WORDS if w in text)
         neg = sum(1 for w in _NEGATIVE_WORDS if w in text)
         total = pos + neg

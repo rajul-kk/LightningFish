@@ -43,6 +43,32 @@ def test_agent_system_prompt_contains_archetype():
     assert persona.archetype in prompt
 
 
+def test_naive_prediction_reads_full_filing_text_not_truncated_summary():
+    # seed.summary truncates context to 200 chars for display; naive_prediction
+    # must read raw_input["filing_text"] instead, or it never sees keywords
+    # that fall past that truncation point. Reproduces the real bug: a real
+    # run scored 6% (near-degenerate) because it was reading the truncated
+    # summary, which after the Item-header-skip fix is mostly boilerplate.
+    adapter = FinanceDomainAdapter()
+    seed = EnrichedSeed(
+        "finance",
+        {"ticker": "AAPL", "filing_text": "x" * 250 + " beat estimates", "filing_date": "2024-01-15"},
+        "AAPL: earnings event. Sector: Technology, large-cap. Context: " + "x" * 200,
+        ["AAPL"], "earnings_beat",
+        {"ticker": "AAPL"},
+    )
+    assert adapter.naive_prediction(seed) > 0
+
+
+def test_naive_prediction_falls_back_to_summary_when_filing_text_missing():
+    adapter = FinanceDomainAdapter()
+    seed = EnrichedSeed(
+        "finance", {"ticker": "AAPL", "filing_date": "2024-01-15"},
+        "AAPL missed estimates badly", ["AAPL"], "earnings_miss", {"ticker": "AAPL"},
+    )
+    assert adapter.naive_prediction(seed) < 0
+
+
 def test_score_direction_match():
     adapter = FinanceDomainAdapter()
     truth = GroundTruthRecord(data={

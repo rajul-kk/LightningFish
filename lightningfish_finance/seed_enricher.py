@@ -68,7 +68,7 @@ def enrich_finance_seed(ticker: str, filing_text: str, filing_date: str) -> Enri
         cap_tier = "small"
 
     summary = (
-        f"{ticker} — {event_type.replace('_', ' ')} event. "
+        f"{ticker}: {event_type.replace('_', ' ')} event. "
         f"Sector: {sector}, {cap_tier}-cap. Context: {context[:200]}"
     )
 
